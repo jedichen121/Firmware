@@ -774,6 +774,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
+						PX4_INFO("Received MAVLink message tpye is %i.", msg.msgid);
 
 						if (msg.msgid != 0 && (hrt_system_time() - pstart_time > 1000000)) {
 							PX4_INFO("Got initial simulation data, running sim..");
