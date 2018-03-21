@@ -862,6 +862,24 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
+						
+					/*zhiwei adds, send msg to another px4, udp port 14562*/
+						uint8_t  buf[MAVLINK_MAX_PACKET_LEN];
+						uint16_t bufLen = 0;
+						// convery mavlink message to raw data
+						bufLen = mavlink_msg_to_send_buffer(buf, &msg);
+
+						_srcaddr.sin_port = htons(14562);
+						// send data
+						ssize_t len2 = sendto(_fd, buf, bufLen, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+						if (len2 <= 0) {
+								PX4_WARN("*****Failed sending mavlink message*");
+						}
+					/* end */
+						if (len <= 0) {
+							PX4_WARN("Failed sending mavlink message******");
+						}
+						
 					}
 				}
 			}
