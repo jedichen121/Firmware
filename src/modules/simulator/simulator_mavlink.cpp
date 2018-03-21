@@ -618,13 +618,13 @@ void Simulator::send()
 		return;
 	}
 
-	px4_pollfd_struct_t fds[1] = {};
-	fds[0].fd = _actuator_outputs_sub[0];
-	fds[0].events = POLLIN;
-
 	// px4_pollfd_struct_t fds[1] = {};
-	// fds[0].fd = _fd3;
+	// fds[0].fd = _actuator_outputs_sub[0];
 	// fds[0].events = POLLIN;
+
+	px4_pollfd_struct_t fds[1] = {};
+	fds[0].fd = _fd3;
+	fds[0].events = POLLIN;
 
 
 	// set the threads name
@@ -635,8 +635,8 @@ void Simulator::send()
 #endif
 
 	int pret;
-	// int len = 0;
-	// unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
+	int len = 0;
+	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 	
 
 	while (true) {
@@ -650,27 +650,29 @@ void Simulator::send()
 
 		// this is undesirable but not much we can do
 		if (pret < 0) {
-			PX4_WARN("poll error %d, %d", pret, errno);
+			PX4_WARN("poll error for container %d, %d", pret, errno);
 			continue;
 		}
 
 		if (fds[0].revents & POLLIN) {
 			// got new data to read, update all topics
-			parameters_update(false);
-			poll_topics();
-			send_controls();
+			// parameters_update(false);
+			// poll_topics();
+			// send_controls();
 
-			// len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, NULL, NULL);
+			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, NULL, NULL);
 
-			// if (len > 0) {
-			// 	ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+			PX4_INFO("Got data");
+			
+			if (len > 0) {
+				// len = 0;
 
-			// 	if (send_len <= 0) {
-			// 		PX4_WARN("Failed sending mavlink message");
-			// 	}
+				ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
-
-			// }
+				if (send_len <= 0) {
+					PX4_WARN("Failed sending mavlink message");
+				}
+			}
 
 		}
 	}
