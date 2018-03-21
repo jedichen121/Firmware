@@ -73,9 +73,10 @@ static int openUart(const char *uart_name, int baud);
 
 static int _fd;
 static int _fd2;
+static int _fd3;
 static unsigned char _buf[1024];
 sockaddr_in _srcaddr;
-sockaddr_in _dummyaddr;
+sockaddr_in _con_send_addr;
 
 static socklen_t _addrlen = sizeof(_srcaddr);
 static hrt_abstime batt_sim_start = 0;
@@ -598,9 +599,32 @@ void *Simulator::sending_trampoline(void * /*unused*/)
 
 void Simulator::send()
 {
+	// udp socket for receiving from container
+	struct sockaddr_in _con_recv_addr;
+
+	// try to setup udp socket for communcation with simulator
+	memset((char *)&_con_recv_addr, 0, sizeof(_con_recv_addr));
+	_con_recv_addr.sin_family = AF_INET;
+	_con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_recv_addr.sin_port = htons(14600);
+
+	if ((_fd3 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return;
+	}
+
+	if (bind(_fd3, (struct sockaddr *)&_con_recv_addr, sizeof(_con_recv_addr)) < 0) {
+		PX4_WARN("bind failed\n");
+		return;
+	}
+
 	px4_pollfd_struct_t fds[1] = {};
 	fds[0].fd = _actuator_outputs_sub[0];
 	fds[0].events = POLLIN;
+
+	// px4_pollfd_struct_t fds[1] = {};
+	// fds[0].fd = _fd3;
+	// fds[0].events = POLLIN;
 
 
 	// set the threads name
@@ -611,6 +635,9 @@ void Simulator::send()
 #endif
 
 	int pret;
+	// int len = 0;
+	// unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
+	
 
 	while (true) {
 		// wait for up to 100ms for data
@@ -632,6 +659,19 @@ void Simulator::send()
 			parameters_update(false);
 			poll_topics();
 			send_controls();
+
+			// len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, NULL, NULL);
+
+			// if (len > 0) {
+			// 	ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+
+			// 	if (send_len <= 0) {
+			// 		PX4_WARN("Failed sending mavlink message");
+			// 	}
+
+
+			// }
+
 		}
 	}
 }
@@ -694,10 +734,10 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	_myaddr.sin_port = htons(udp_port);
 
 	
-	memset((char *)&_dummyaddr, 0, sizeof(_dummyaddr));
-	_dummyaddr.sin_family = AF_INET;
-	_dummyaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_dummyaddr.sin_port = htons(14660);
+	memset((char *)&_con_send_addr, 0, sizeof(_con_send_addr));
+	_con_send_addr.sin_family = AF_INET;
+	_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_send_addr.sin_port = htons(14660);
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
@@ -779,7 +819,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 			len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
 
 			// for container
-			// ssize_t len_send = sendto(_fd, _buf, len, 0, (struct sockaddr *)&_dummyaddr, _addrlen);
+			// ssize_t len_send = sendto(_fd, _buf, len, 0, (struct sockaddr *)&_con_send_addr, _addrlen);
 			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_port);
 			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_addr.s_addr);
 
@@ -872,7 +912,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 		// this is undesirable but not much we can do
 		if (pret < 0) {
-			PX4_WARN("simulator mavlink: poll error %d, %d", pret, errno);
+			PX4_WARN("simulator mavlink: poll error from container %d, %d", pret, errno);
 			// sleep a bit before next try
 			usleep(100000);
 			continue;
@@ -890,7 +930,8 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 						// have a message, handle it
 						handle_message(&msg, publish);
 
-						ssize_t send_len = sendto(_fd2, _buf, len, 0, (struct sockaddr *)&_dummyaddr, _addrlen);
+						// send simulator data to container
+						ssize_t send_len = sendto(_fd2, _buf, len, 0, (struct sockaddr *)&_con_send_addr, _addrlen);
 
 						if (send_len <= 0) {
 							PX4_WARN("Failed sending mavlink message");
