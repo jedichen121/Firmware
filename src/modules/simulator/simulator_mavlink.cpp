@@ -72,8 +72,11 @@ static int openUart(const char *uart_name, int baud);
 #endif
 
 static int _fd;
+static int _fd2;
 static unsigned char _buf[1024];
 sockaddr_in _srcaddr;
+sockaddr_in _dummyaddr;
+
 static socklen_t _addrlen = sizeof(_srcaddr);
 static hrt_abstime batt_sim_start = 0;
 
@@ -559,6 +562,7 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
 
 	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+	// PX4_INFO("in send_mavlink_message, srcaddr is %i", _srcaddr);
 
 	if (len <= 0) {
 		PX4_WARN("Failed sending mavlink message");
@@ -689,6 +693,12 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	_myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	_myaddr.sin_port = htons(udp_port);
 
+	
+	memset((char *)&_dummyaddr, 0, sizeof(_dummyaddr));
+	_dummyaddr.sin_family = AF_INET;
+	_dummyaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_dummyaddr.sin_port = htons(14660);
+
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
 		return;
@@ -698,6 +708,12 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		PX4_WARN("bind failed\n");
 		return;
 	}
+
+	if ((_fd2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return;
+	}
+
 
 	// create a thread for sending data to the simulator
 	pthread_t sender_thread;
@@ -745,6 +761,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	// this is important for the UDP communication to work
 	int pret = -1;
 	PX4_INFO("Waiting for initial data on UDP port %i. Please start the flight simulator to proceed..", udp_port);
+	// PX4_INFO("_srcaddr is %i", _srcaddr);
 	fflush(stdout);
 
 	uint64_t pstart_time = 0;
@@ -760,6 +777,17 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 			}
 
 			len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
+
+			// for container
+			// ssize_t len_send = sendto(_fd, _buf, len, 0, (struct sockaddr *)&_dummyaddr, _addrlen);
+			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_port);
+			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_addr.s_addr);
+
+			// if (len_send <= 0) {
+			// 	PX4_WARN("Failed sending mavlink message to dummy px4");
+			// }
+			// PX4_INFO("after recvfrom, _srcaddr is %i", _srcaddr);
+			
 			// send hearbeat
 			mavlink_heartbeat_t hb = {};
 			hb.autopilot = 12;
@@ -861,6 +889,12 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
+
+						ssize_t send_len = sendto(_fd2, _buf, len, 0, (struct sockaddr *)&_dummyaddr, _addrlen);
+
+						if (send_len <= 0) {
+							PX4_WARN("Failed sending mavlink message");
+						}
 					}
 				}
 			}
