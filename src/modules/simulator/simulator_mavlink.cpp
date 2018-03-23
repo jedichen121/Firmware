@@ -674,20 +674,23 @@ void Simulator::send()
 					msg.msgid = 0;
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
 						// have a message, handle it
-						if (msg.msgid != 0) {
-							PX4_INFO("msgid is %d", msg.msgid);
-							PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
+						if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
+							// PX4_INFO("msgid is %d", msg.msgid);
 
-							
+							mavlink_hil_actuator_controls_t ctrl;
+							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
+
+							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
+							send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 						}
 					}
 				}
 
-				ssize_t send_len = sendto(_fd3, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+				// ssize_t send_len = sendto(_fd3, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
-				if (send_len <= 0) {
-					PX4_WARN("Failed sending mavlink message");
-				}
+				// if (send_len <= 0) {
+				// 	PX4_WARN("Failed sending mavlink message");
+				// }
 			}
 
 		// }
