@@ -881,6 +881,18 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		}
 	}
 
+	// test send port number to container
+	int port = ntohs(_srcaddr.sin_port);
+	PX4_INFO("port is: %d", port);
+	// send simulator port to container
+	ssize_t _len = sendto(_fd2, &port, sizeof(port), 0, (struct sockaddr *)&_con_send_addr, _addrlen);
+
+	if (_len <= 0) {
+		PX4_WARN("Failed sending mavlink message port");
+	}
+
+
+
 	if (px4_exit_requested()) {
 		return;
 	}
