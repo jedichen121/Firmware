@@ -564,9 +564,6 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
-
-	PX4_INFO("payload_len %d", payload_len);
-	PX4_INFO("checksum %d", checksum);
 	
 	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	// PX4_INFO("in send_mavlink_message, srcaddr is %i", _srcaddr);
@@ -624,14 +621,19 @@ void Simulator::send()
 		return;
 	}
 
+	int pret = -1;
+
 	// px4_pollfd_struct_t fds[1] = {};
 	// fds[0].fd = _actuator_outputs_sub[0];
 	// fds[0].events = POLLIN;
 
-	// px4_pollfd_struct_t fds[1] = {};
-	// fds[0].fd = _fd3;
-	// fds[0].events = POLLIN;
-
+	struct pollfd fds[2];
+	memset(fds, 0, sizeof(fds));
+	unsigned fd_count = 1;
+	fds[0].fd = _fd3;
+	fds[0].events = POLLIN;
+	int len = 0;
+	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 
 	// set the threads name
 #ifdef __PX4_DARWIN
@@ -640,35 +642,32 @@ void Simulator::send()
 	pthread_setname_np(pthread_self(), "sim_send");
 #endif
 
-	// int pret;
-	int len = 0;
-	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 	
 
 	while (true) {
 		// wait for up to 100ms for data
-		// pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 500);
+		// pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 100);
+		pret = ::poll(&fds[0], fd_count, 100);
 
-		// // timed out
-		// if (pret == 0) {
-		// 	// PX4_WARN("px4_poll timed out");
-		// 	continue;
-		// }
+		// timed out
+		if (pret == 0) {
+			// PX4_WARN("px4_poll timed out");
+			continue;
+		}
 
-		// // this is undesirable but not much we can do
-		// if (pret < 0) {
-		// 	PX4_WARN("poll error for container %d, %d", pret, errno);
-		// 	continue;
-		// }
+		// this is undesirable but not much we can do
+		if (pret < 0) {
+			PX4_WARN("poll error for container %d, %d", pret, errno);
+			continue;
+		}
 
-		// if (fds[0].revents & POLLIN) {
+		if (fds[0].revents & POLLIN) {
 			// got new data to read, update all topics
 			// parameters_update(false);
 			// poll_topics();
 			// send_controls();
-			// len = 0;
+
 			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
-			// // PX4_INFO("Got data");
 
 			if (len > 0) {
 				mavlink_message_t msg;
@@ -678,29 +677,18 @@ void Simulator::send()
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
 						// have a message, handle it
 						if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
-							// PX4_INFO("msgid is %d", msg.msgid);
-
+							// unpacking the mavlink data
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
 							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
-							// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
-							// ssize_t packet_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
-							// if (packet_len <= 0) {
-							// 	PX4_WARN("Failed sending mavlink message");
-							// }
+							send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 						}
 					}
 				}
-
-				ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
-
-				if (send_len <= 0) {
-					PX4_WARN("Failed sending mavlink message");
-				}
 			}
 
-		// }
+		}
 	}
 }
 
@@ -845,16 +833,6 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 			}
 
 			len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
-
-			// for container
-			// ssize_t len_send = sendto(_fd, _buf, len, 0, (struct sockaddr *)&_con_send_addr, _addrlen);
-			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_port);
-			// PX4_INFO("in send_mavlink_message, srcaddr port is %i", _srcaddr.sin_addr.s_addr);
-
-			// if (len_send <= 0) {
-			// 	PX4_WARN("Failed sending mavlink message to dummy px4");
-			// }
-			// PX4_INFO("after recvfrom, _srcaddr is %i", _srcaddr);
 			
 			// send hearbeat
 			mavlink_heartbeat_t hb = {};
@@ -880,18 +858,6 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 			}
 		}
 	}
-
-	// test send port number to container
-	int port = ntohs(_srcaddr.sin_port);
-	PX4_INFO("port is: %d", port);
-	// send simulator port to container
-	ssize_t _len = sendto(_fd2, &port, sizeof(port), 0, (struct sockaddr *)&_con_send_addr, _addrlen);
-
-	if (_len <= 0) {
-		PX4_WARN("Failed sending mavlink message port");
-	}
-
-
 
 	if (px4_exit_requested()) {
 		return;
