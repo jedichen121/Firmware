@@ -562,9 +562,6 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
 
-	PX4_INFO("payload_len %d", payload_len);
-	PX4_INFO("checksum %d", checksum);
-
 	// ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	ssize_t len = sendto(_fd2, buf, packet_len, 0, (struct sockaddr *)&_sendaddr, _addrlen2);
 
@@ -771,15 +768,6 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	uint64_t pstart_time = 0;
 
 	bool no_sim_data = true;
-
-
-	// int port;
-
-	// len = recvfrom(_fd, &port, sizeof(port), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
-	// PX4_INFO("port is: %d", port);
-
-	// _sendaddr.sin_port = htons(port);
-
 
 	while (!px4_exit_requested() && no_sim_data) {
 		pret = ::poll(&fds[0], fd_count, 100);
