@@ -565,6 +565,9 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
 
+	PX4_INFO("payload_len %d", payload_len);
+	PX4_INFO("checksum %d", checksum);
+	
 	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	// PX4_INFO("in send_mavlink_message, srcaddr is %i", _srcaddr);
 
@@ -681,16 +684,20 @@ void Simulator::send()
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
 							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
-							send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+							// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+							// ssize_t packet_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+							// if (packet_len <= 0) {
+							// 	PX4_WARN("Failed sending mavlink message");
+							// }
 						}
 					}
 				}
 
-				// ssize_t send_len = sendto(_fd3, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+				ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
-				// if (send_len <= 0) {
-				// 	PX4_WARN("Failed sending mavlink message");
-				// }
+				if (send_len <= 0) {
+					PX4_WARN("Failed sending mavlink message");
+				}
 			}
 
 		// }
