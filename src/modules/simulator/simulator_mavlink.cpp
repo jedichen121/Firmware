@@ -77,7 +77,7 @@ static int _fd3;
 static unsigned char _buf[1024];
 sockaddr_in _srcaddr;
 sockaddr_in _con_send_addr;
-
+sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 static hrt_abstime batt_sim_start = 0;
 
@@ -186,6 +186,9 @@ void Simulator::send_controls()
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
+		// printf("%d %d %d %d\n", (double) msg.controls[0]*100, (double) msg.controls[1]*100, (double) msg.controls[2]*100, (double) msg.controls[3]*100);
+		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
+		// printf("%d\n", (double) msg.controls[0]);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
@@ -622,9 +625,9 @@ void Simulator::send()
 	// fds[0].fd = _actuator_outputs_sub[0];
 	// fds[0].events = POLLIN;
 
-	px4_pollfd_struct_t fds[1] = {};
-	fds[0].fd = _fd3;
-	fds[0].events = POLLIN;
+	// px4_pollfd_struct_t fds[1] = {};
+	// fds[0].fd = _fd3;
+	// fds[0].events = POLLIN;
 
 
 	// set the threads name
@@ -634,47 +637,60 @@ void Simulator::send()
 	pthread_setname_np(pthread_self(), "sim_send");
 #endif
 
-	int pret;
+	// int pret;
 	int len = 0;
 	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 	
 
 	while (true) {
 		// wait for up to 100ms for data
-		pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 100);
+		// pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 500);
 
-		// timed out
-		if (pret == 0) {
-			continue;
-		}
+		// // timed out
+		// if (pret == 0) {
+		// 	// PX4_WARN("px4_poll timed out");
+		// 	continue;
+		// }
 
-		// this is undesirable but not much we can do
-		if (pret < 0) {
-			PX4_WARN("poll error for container %d, %d", pret, errno);
-			continue;
-		}
+		// // this is undesirable but not much we can do
+		// if (pret < 0) {
+		// 	PX4_WARN("poll error for container %d, %d", pret, errno);
+		// 	continue;
+		// }
 
-		if (fds[0].revents & POLLIN) {
+		// if (fds[0].revents & POLLIN) {
 			// got new data to read, update all topics
 			// parameters_update(false);
 			// poll_topics();
 			// send_controls();
+			// len = 0;
+			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
+			// // PX4_INFO("Got data");
 
-			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, NULL, NULL);
-
-			PX4_INFO("Got data");
-			
 			if (len > 0) {
-				// len = 0;
+				mavlink_message_t msg;
+				mavlink_status_t udp_status = {};
+				for (int i = 0; i < len; i++) {
+					msg.msgid = 0;
+					if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
+						// have a message, handle it
+						if (msg.msgid != 0) {
+							PX4_INFO("msgid is %d", msg.msgid);
+							PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
 
-				ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+							
+						}
+					}
+				}
+
+				ssize_t send_len = sendto(_fd3, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
 				if (send_len <= 0) {
 					PX4_WARN("Failed sending mavlink message");
 				}
 			}
 
-		}
+		// }
 	}
 }
 
