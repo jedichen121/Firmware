@@ -50,7 +50,7 @@
 extern "C" __EXPORT hrt_abstime hrt_reset(void);
 
 #define SEND_INTERVAL 	20
-#define UDP_PORT 	14560
+#define UDP_PORT 	14660
 
 #define PRESS_GROUND 101325.0f
 #define DENSITY 1.2041f
@@ -72,9 +72,12 @@ static int openUart(const char *uart_name, int baud);
 #endif
 
 static int _fd;
+static int _fd2;
 static unsigned char _buf[1024];
 sockaddr_in _srcaddr;
+sockaddr_in _sendaddr;
 static socklen_t _addrlen = sizeof(_srcaddr);
+static socklen_t _addrlen2 = sizeof(_sendaddr);
 static hrt_abstime batt_sim_start = 0;
 
 const unsigned mode_flag_armed = 128; // following MAVLink spec
@@ -182,6 +185,7 @@ void Simulator::send_controls()
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
+		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
@@ -558,7 +562,8 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
 
-	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+	// ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+	ssize_t len = sendto(_fd2, buf, packet_len, 0, (struct sockaddr *)&_sendaddr, _addrlen2);
 
 	if (len <= 0) {
 		PX4_WARN("Failed sending mavlink message");
@@ -683,6 +688,8 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		udp_port = prt;
 	}
 
+	udp_port = UDP_PORT;
+
 	// try to setup udp socket for communcation with simulator
 	memset((char *)&_myaddr, 0, sizeof(_myaddr));
 	_myaddr.sin_family = AF_INET;
@@ -696,6 +703,16 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 	if (bind(_fd, (struct sockaddr *)&_myaddr, sizeof(_myaddr)) < 0) {
 		PX4_WARN("bind failed\n");
+		return;
+	}
+
+	memset((char *)&_sendaddr, 0, sizeof(_sendaddr));
+	_sendaddr.sin_family = AF_INET;
+	_sendaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_sendaddr.sin_port = htons(14600);
+
+	if ((_fd2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed in send_mavlink_message\n");
 		return;
 	}
 
@@ -744,6 +761,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	// wait for first data from simulator and respond with first controls
 	// this is important for the UDP communication to work
 	int pret = -1;
+	PX4_INFO("MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS is: %d", MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS);
 	PX4_INFO("Waiting for initial data on UDP port %i. Please start the flight simulator to proceed..", udp_port);
 	fflush(stdout);
 
@@ -774,7 +792,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
-						PX4_INFO("Received MAVLink message tpye is %i.", msg.msgid);
+						// PX4_INFO("Received MAVLink message tpye is %i.", msg.msgid);
 
 						if (msg.msgid != 0 && (hrt_system_time() - pstart_time > 1000000)) {
 							PX4_INFO("Got initial simulation data, running sim..");
