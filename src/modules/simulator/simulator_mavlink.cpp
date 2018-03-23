@@ -594,14 +594,22 @@ void Simulator::poll_topics()
 	}
 }
 
-void *Simulator::sending_trampoline(void * /*unused*/)
+void *Simulator::poll_container_trampoline(void * /*unused*/)
 {
-	_instance->send();
+	_instance->poll_container();
 	return nullptr;
 }
 
-void Simulator::send()
+void Simulator::poll_container()
 {
+
+	// set the threads name
+#ifdef __PX4_DARWIN
+	pthread_setname_np("poll_container");
+#else
+	pthread_setname_np(pthread_self(), "poll_container");
+#endif
+
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
 
@@ -621,12 +629,6 @@ void Simulator::send()
 		return;
 	}
 
-	int pret = -1;
-
-	// px4_pollfd_struct_t fds[1] = {};
-	// fds[0].fd = _actuator_outputs_sub[0];
-	// fds[0].events = POLLIN;
-
 	struct pollfd fds[2];
 	memset(fds, 0, sizeof(fds));
 	unsigned fd_count = 1;
@@ -635,18 +637,10 @@ void Simulator::send()
 	int len = 0;
 	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 
-	// set the threads name
-#ifdef __PX4_DARWIN
-	pthread_setname_np("sim_send");
-#else
-	pthread_setname_np(pthread_self(), "sim_send");
-#endif
-
-	
+	int pret = -1;
 
 	while (true) {
 		// wait for up to 100ms for data
-		// pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 100);
 		pret = ::poll(&fds[0], fd_count, 100);
 
 		// timed out
@@ -662,11 +656,7 @@ void Simulator::send()
 		}
 
 		if (fds[0].revents & POLLIN) {
-			// got new data to read, update all topics
-			// parameters_update(false);
-			// poll_topics();
-			// send_controls();
-
+			// got new data from container, try to publish data
 			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
 
 			if (len > 0) {
@@ -684,9 +674,90 @@ void Simulator::send()
 							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
 							send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 						}
+						else if (msg.msgid != 0) {
+							PX4_INFO("msgid is %d", msg.msgid);
+							// ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+							ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+
+							if (send_len <= 0) {
+								PX4_WARN("Failed sending mavlink message");
+							}
+						}
+
 					}
 				}
 			}
+
+		}
+	}
+
+
+}
+
+void *Simulator::sending_trampoline(void * /*unused*/)
+{
+	_instance->send();
+	return nullptr;
+}
+
+void Simulator::send()
+{
+	int pret = -1;
+
+	px4_pollfd_struct_t fds[1] = {};
+	fds[0].fd = _actuator_outputs_sub[0];
+	fds[0].events = POLLIN;
+
+	// set the threads name
+#ifdef __PX4_DARWIN
+	pthread_setname_np("sim_send");
+#else
+	pthread_setname_np(pthread_self(), "sim_send");
+#endif
+
+	while (true) {
+		// wait for up to 100ms for data
+		pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 100);
+		// pret = ::poll(&fds[0], fd_count, 100);
+
+		// timed out
+		if (pret == 0) {
+			// PX4_WARN("px4_poll timed out");
+			continue;
+		}
+
+		// this is undesirable but not much we can do
+		if (pret < 0) {
+			PX4_WARN("poll error for container %d, %d", pret, errno);
+			continue;
+		}
+
+		if (fds[0].revents & POLLIN) {
+			// got new data to read, update all topics
+			parameters_update(false);
+			poll_topics();
+			send_controls();
+
+			// len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
+
+			// if (len > 0) {
+			// 	mavlink_message_t msg;
+			// 	mavlink_status_t udp_status = {};
+			// 	for (int i = 0; i < len; i++) {
+			// 		msg.msgid = 0;
+			// 		if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
+			// 			// have a message, handle it
+			// 			if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
+			// 				// unpacking the mavlink data
+			// 				mavlink_hil_actuator_controls_t ctrl;
+			// 				mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
+
+			// 				PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
+			// 				send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+			// 			}
+			// 		}
+			// 	}
+			// }
 
 		}
 	}
@@ -786,6 +857,24 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
 	(void)pthread_attr_setschedparam(&sender_thread_attr, &param);
 
+
+	// create a thread for getting data from container
+	pthread_t poll_container_thread;
+
+	// initialize threads
+	pthread_attr_t poll_container_thread_attr;
+	pthread_attr_init(&poll_container_thread_attr);
+	pthread_attr_setstacksize(&poll_container_thread_attr, PX4_STACK_ADJUSTED(4000));
+
+	
+	(void)pthread_attr_getschedparam(&poll_container_thread_attr, &param);
+
+	// use same priority as the original sending process
+	/* low priority */
+	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
+	(void)pthread_attr_setschedparam(&poll_container_thread_attr, &param);
+
+
 	struct pollfd fds[2];
 	memset(fds, 0, sizeof(fds));
 	unsigned fd_count = 1;
@@ -876,6 +965,9 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	// got data from simulator, now activate the sending thread
 	pthread_create(&sender_thread, &sender_thread_attr, Simulator::sending_trampoline, nullptr);
 	pthread_attr_destroy(&sender_thread_attr);
+
+	pthread_create(&poll_container_thread, &poll_container_thread_attr, Simulator::poll_container_trampoline, nullptr);
+	pthread_attr_destroy(&poll_container_thread_attr);
 
 	mavlink_status_t udp_status = {};
 

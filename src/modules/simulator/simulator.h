@@ -396,5 +396,7 @@ private:
 	void parameters_update(bool force);
 	static void *sending_trampoline(void *);
 	void send();
+	static void *poll_container_trampoline(void *);
+	void poll_container();
 #endif
 };
