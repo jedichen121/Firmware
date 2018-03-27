@@ -398,5 +398,6 @@ private:
 	void send();
 	static void *poll_container_trampoline(void *);
 	void poll_container();
+	int check_control_value(mavlink_hil_actuator_controls_t &msg);
 #endif
 };

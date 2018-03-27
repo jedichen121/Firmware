@@ -186,10 +186,9 @@ void Simulator::send_controls()
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
-		// printf("%d %d %d %d\n", (double) msg.controls[0]*100, (double) msg.controls[1]*100, (double) msg.controls[2]*100, (double) msg.controls[3]*100);
-		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
-		// printf("%d\n", (double) msg.controls[0]);
-		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
+		// PX4_INFO("%f %f %f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3], (double) msg.controls[4], (double) msg.controls[5]);
+
+		// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
 
@@ -594,6 +593,41 @@ void Simulator::poll_topics()
 	}
 }
 
+
+int Simulator::check_control_value(mavlink_hil_actuator_controls_t &msg)
+{
+	unsigned n;
+	unsigned error = 0;
+	if (_system_type == MAV_TYPE_QUADROTOR) {
+		n = 4;
+		for (unsigned i = 0; i < 16; i++) {
+			if (i < n) {
+				if (msg.controls[i] < 0 || msg.controls[i] > 1) {
+					error = 1;
+					break;
+				}
+			}
+			else {
+				if (msg.controls[i] < -1 || msg.controls[i] > 1) {
+					error = 1;
+					break;
+				}
+			}
+		}
+	}
+	else {
+		PX4_WARN("Unsupported vehivle type");
+		return 0;
+	}
+
+	if (error) {
+		PX4_WARN("Received error control message");
+		return 0;
+	}
+
+	return 1;
+}
+
 void *Simulator::poll_container_trampoline(void * /*unused*/)
 {
 	_instance->poll_container();
@@ -671,12 +705,12 @@ void Simulator::poll_container()
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
-							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
-							send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+							// PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
+							if (check_control_value(ctrl))
+								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 						}
 						else if (msg.msgid != 0) {
 							PX4_INFO("msgid is %d", msg.msgid);
-							// ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 							ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
 							if (send_len <= 0) {
@@ -737,28 +771,6 @@ void Simulator::send()
 			parameters_update(false);
 			poll_topics();
 			send_controls();
-
-			// len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
-
-			// if (len > 0) {
-			// 	mavlink_message_t msg;
-			// 	mavlink_status_t udp_status = {};
-			// 	for (int i = 0; i < len; i++) {
-			// 		msg.msgid = 0;
-			// 		if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
-			// 			// have a message, handle it
-			// 			if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
-			// 				// unpacking the mavlink data
-			// 				mavlink_hil_actuator_controls_t ctrl;
-			// 				mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
-
-			// 				PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
-			// 				send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
-			// 			}
-			// 		}
-			// 	}
-			// }
-
 		}
 	}
 }
@@ -871,7 +883,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 	// use same priority as the original sending process
 	/* low priority */
-	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
+	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40 - 1;
 	(void)pthread_attr_setschedparam(&poll_container_thread_attr, &param);
 
 
