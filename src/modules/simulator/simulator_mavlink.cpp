@@ -185,7 +185,7 @@ void Simulator::send_controls()
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
-		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
+		// PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
@@ -562,6 +562,9 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
 
+	// if (msgid != MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS)
+	// 	PX4_INFO("msgid is %d", msgid);
+
 	// ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	ssize_t len = sendto(_fd2, buf, packet_len, 0, (struct sockaddr *)&_sendaddr, _addrlen2);
 
@@ -761,7 +764,6 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	// wait for first data from simulator and respond with first controls
 	// this is important for the UDP communication to work
 	int pret = -1;
-	PX4_INFO("MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS is: %d", MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS);
 	PX4_INFO("Waiting for initial data on UDP port %i. Please start the flight simulator to proceed..", udp_port);
 	fflush(stdout);
 
@@ -881,22 +883,22 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 						// have a message, handle it
 						handle_message(&msg, publish);
 						
-					/*zhiwei adds, send msg to another px4, udp port 14562*/
-						uint8_t  buf[MAVLINK_MAX_PACKET_LEN];
-						uint16_t bufLen = 0;
-						// convery mavlink message to raw data
-						bufLen = mavlink_msg_to_send_buffer(buf, &msg);
+					// /*zhiwei adds, send msg to another px4, udp port 14562*/
+					// 	uint8_t  buf[MAVLINK_MAX_PACKET_LEN];
+					// 	uint16_t bufLen = 0;
+					// 	// convery mavlink message to raw data
+					// 	bufLen = mavlink_msg_to_send_buffer(buf, &msg);
 
-						_srcaddr.sin_port = htons(14562);
-						// send data
-						ssize_t len2 = sendto(_fd, buf, bufLen, 0, (struct sockaddr *)&_srcaddr, _addrlen);
-						if (len2 <= 0) {
-								PX4_WARN("*****Failed sending mavlink message*");
-						}
-					/* end */
-						if (len <= 0) {
-							PX4_WARN("Failed sending mavlink message******");
-						}
+					// 	_srcaddr.sin_port = htons(14562);
+					// 	// send data
+					// 	ssize_t len2 = sendto(_fd, buf, bufLen, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+					// 	if (len2 <= 0) {
+					// 			PX4_WARN("*****Failed sending mavlink message*");
+					// 	}
+					// /* end */
+					// 	if (len <= 0) {
+					// 		PX4_WARN("Failed sending mavlink message******");
+					// 	}
 						
 					}
 				}
