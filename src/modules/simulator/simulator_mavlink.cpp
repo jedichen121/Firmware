@@ -672,6 +672,7 @@ void Simulator::poll_container()
 	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
 
 	int pret = -1;
+	mavlink_status_t udp_status = {};
 
 	while (true) {
 		// wait for up to 100ms for data
@@ -694,11 +695,13 @@ void Simulator::poll_container()
 			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
 
 			if (len > 0) {
+				// len = 0;
 				mavlink_message_t msg;
-				mavlink_status_t udp_status = {};
+				
 				for (int i = 0; i < len; i++) {
 					msg.msgid = 0;
-					if (mavlink_parse_char(MAVLINK_COMM_0, _buffer[i], &msg, &udp_status)) {
+					// mavlink_parse_char(MAVLINK_COMM_1, _buffer[i], &msg, &udp_status);
+					if (mavlink_parse_char(MAVLINK_COMM_1, _buffer[i], &msg, &udp_status)) {
 						// have a message, handle it
 						if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
 							// unpacking the mavlink data
@@ -717,7 +720,6 @@ void Simulator::poll_container()
 								PX4_WARN("Failed sending mavlink message");
 							}
 						}
-
 					}
 				}
 			}
