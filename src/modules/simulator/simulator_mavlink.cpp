@@ -46,6 +46,7 @@
 #include <conversion/rotation.h>
 #include <mathlib/mathlib.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <uORB/topics/actuator_dummy_outputs.h>
 
 extern "C" __EXPORT hrt_abstime hrt_reset(void);
 
@@ -644,6 +645,14 @@ void Simulator::poll_container()
 	pthread_setname_np(pthread_self(), "poll_container");
 #endif
 
+
+	/* advertise attitude topic */
+    struct actuator_dummy_outputs_s aout;
+    memset(&aout, 0, sizeof(aout));
+    orb_advert_t aout_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
+
+
+
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
 
@@ -662,6 +671,7 @@ void Simulator::poll_container()
 		PX4_WARN("bind failed\n");
 		return;
 	}
+
 
 	struct pollfd fds[2];
 	memset(fds, 0, sizeof(fds));
@@ -709,8 +719,12 @@ void Simulator::poll_container()
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
 							// PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
-							if (check_control_value(ctrl))
+							if (check_control_value(ctrl)) {
 								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+								for (int j = 0; j < 16; j++) 
+									aout.output[j] = ctrl.controls[j];
+								orb_publish(ORB_ID(actuator_dummy_outputs), aout_pub, &aout);
+							}
 						}
 						else if (msg.msgid != 0) {
 							PX4_INFO("msgid is %d", msg.msgid);
