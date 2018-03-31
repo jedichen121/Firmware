@@ -46,7 +46,6 @@
 #include <conversion/rotation.h>
 #include <mathlib/mathlib.h>
 #include <uORB/topics/vehicle_local_position.h>
-#include <uORB/topics/actuator_dummy_outputs.h>
 
 extern "C" __EXPORT hrt_abstime hrt_reset(void);
 
@@ -179,6 +178,17 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 
 void Simulator::send_controls()
 {
+	bool updated;
+
+	orb_check(_dummy_outputs_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
+	}
+	else
+		PX4_INFO("dummy output not available");
+	
+
 	for (unsigned i = 0; i < (sizeof(_actuator_outputs_sub) / sizeof(_actuator_outputs_sub[0])); i++) {
 
 		if (_actuator_outputs_sub[i] < 0 || _actuators[i].timestamp == 0) {
@@ -592,6 +602,7 @@ void Simulator::poll_topics()
 	if (updated) {
 		orb_copy(ORB_ID(vehicle_status), _vehicle_status_sub, &_vehicle_status);
 	}
+	
 }
 
 
@@ -649,7 +660,7 @@ void Simulator::poll_container()
 	/* advertise attitude topic */
     struct actuator_dummy_outputs_s aout;
     memset(&aout, 0, sizeof(aout));
-    orb_advert_t aout_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
+    _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
 
 
 
@@ -720,10 +731,10 @@ void Simulator::poll_container()
 
 							// PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
 							if (check_control_value(ctrl)) {
-								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+								// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								for (int j = 0; j < 16; j++) 
 									aout.output[j] = ctrl.controls[j];
-								orb_publish(ORB_ID(actuator_dummy_outputs), aout_pub, &aout);
+								orb_publish(ORB_ID(actuator_dummy_outputs), _dummy_pub, &aout);
 							}
 						}
 						else if (msg.msgid != 0) {
@@ -987,6 +998,8 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 	for (unsigned i = 0; i < (sizeof(_actuator_outputs_sub) / sizeof(_actuator_outputs_sub[0])); i++) {
 		_actuator_outputs_sub[i] = orb_subscribe_multi(ORB_ID(actuator_outputs), i);
 	}
+
+	_dummy_outputs_sub = orb_subscribe(ORB_ID(actuator_dummy_outputs));
 
 	_vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
 

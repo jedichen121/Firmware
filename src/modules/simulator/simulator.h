@@ -63,6 +63,8 @@
 #include <v1.0/mavlink_types.h>
 #include <v1.0/common/mavlink.h>
 #include <geo/geo.h>
+#include <uORB/topics/actuator_dummy_outputs.h>
+
 namespace simulator
 {
 
@@ -250,6 +252,7 @@ private:
 		_vision_attitude_pub(nullptr),
 		_dist_pub(nullptr),
 		_battery_pub(nullptr),
+		_dummy_pub(nullptr),
 		_param_sub(-1),
 		_initialized(false),
 		_realtime_factor(1.0),
@@ -264,6 +267,7 @@ private:
 		_vehicle_attitude_sub(-1),
 		_manual_sub(-1),
 		_vehicle_status_sub(-1),
+		_dummy_outputs_sub(-1),
 		_hil_local_proj_ref(),
 		_hil_local_proj_inited(false),
 		_hil_ref_lat(0),
@@ -275,6 +279,7 @@ private:
 		_attitude{},
 		_manual{},
 		_vehicle_status{},
+		_dummy_outputs{},
 		_battery_drain_interval_s(this, "BAT_DRAIN")
 #endif
 	{
@@ -334,6 +339,7 @@ private:
 	orb_advert_t _vision_attitude_pub;
 	orb_advert_t _dist_pub;
 	orb_advert_t _battery_pub;
+	orb_advert_t _dummy_pub;
 
 	int				_param_sub;
 
@@ -366,6 +372,7 @@ private:
 	int _vehicle_attitude_sub;
 	int _manual_sub;
 	int _vehicle_status_sub;
+	int _dummy_outputs_sub;
 
 	// hil map_ref data
 	struct map_projection_reference_s _hil_local_proj_ref;
@@ -381,6 +388,7 @@ private:
 	struct vehicle_attitude_s _attitude;
 	struct manual_control_setpoint_s _manual;
 	struct vehicle_status_s _vehicle_status;
+	struct actuator_dummy_outputs_s _dummy_outputs;
 
 	control::BlockParamFloat _battery_drain_interval_s; ///< battery drain interval
 
