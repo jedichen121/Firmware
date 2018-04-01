@@ -176,18 +176,51 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 	msg.flags = 0;
 }
 
+void Simulator::pack_dummy_message(mavlink_hil_actuator_controls_t &msg)
+{
+	msg.time_usec = hrt_absolute_time();
+
+	bool armed = (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+
+	if (_system_type == MAV_TYPE_QUADROTOR ||
+	    _system_type == MAV_TYPE_HEXAROTOR ||
+	    _system_type == MAV_TYPE_OCTOROTOR ||
+	    _system_type == MAV_TYPE_VTOL_DUOROTOR ||
+	    _system_type == MAV_TYPE_VTOL_QUADROTOR ||
+	    _system_type == MAV_TYPE_VTOL_RESERVED2) {
+
+		/* multirotors: set number of rotor outputs depending on type */
+
+		for (unsigned i = 0; i < 16; i++)
+			msg.controls[i] = _dummy_outputs.output[i];
+
+	}
+	else 
+		PX4_WARN("Unsupported container message");
+
+	msg.mode = mode_flag_custom;
+	msg.mode |= (armed) ? mode_flag_armed : 0;
+	msg.flags = 0;
+
+}
+
+
 void Simulator::send_controls()
 {
 	bool updated;
+	mavlink_hil_actuator_controls_t dummy_msg;
 
 	orb_check(_dummy_outputs_sub, &updated);
 
 	if (updated) {
 		orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
+		pack_dummy_message(dummy_msg);
+		// PX4_INFO("%f %f %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3], (double) _dummy_outputs.output[4], (double) _dummy_outputs.output[5]);
+
 	}
-	else
-		PX4_INFO("dummy output not available");
-	
+	// else
+	// 	PX4_INFO("dummy output not available");
+
 
 	for (unsigned i = 0; i < (sizeof(_actuator_outputs_sub) / sizeof(_actuator_outputs_sub[0])); i++) {
 
@@ -197,9 +230,13 @@ void Simulator::send_controls()
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
-		// PX4_INFO("%f %f %f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3], (double) msg.controls[4], (double) msg.controls[5]);
-
-		// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
+		// PX4_INFO("%f %f %f %f %f %f", (double) dummy_msg.controls[0], (double) dummy_msg.controls[1], (double) dummy_msg.controls[2], (double) dummy_msg.controls[3], (double) dummy_msg.controls[4], (double) dummy_msg.controls[5]);
+		if (updated) {
+			send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &dummy_msg, 200);
+			updated = false;
+		}
+		else
+			send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
 
@@ -662,7 +699,7 @@ void Simulator::poll_container()
     memset(&aout, 0, sizeof(aout));
     _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
 
-
+    uint64_t timestamp = hrt_absolute_time();
 
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
@@ -734,7 +771,11 @@ void Simulator::poll_container()
 								// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								for (int j = 0; j < 16; j++) 
 									aout.output[j] = ctrl.controls[j];
-								orb_publish(ORB_ID(actuator_dummy_outputs), _dummy_pub, &aout);
+								aout.timestamp = timestamp;
+								int dummy_multi;
+								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_HIGH);
+
+								// orb_publish(ORB_ID(actuator_dummy_outputs), _dummy_pub, &aout);
 							}
 						}
 						else if (msg.msgid != 0) {
