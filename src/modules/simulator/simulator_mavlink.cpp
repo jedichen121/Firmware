@@ -216,8 +216,9 @@ void Simulator::send_controls()
 		orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 		pack_dummy_message(dummy_msg);
 		// PX4_INFO("%f %f %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3], (double) _dummy_outputs.output[4], (double) _dummy_outputs.output[5]);
-
+		// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &dummy_msg, 200);
 	}
+	// return;
 	// else
 	// 	PX4_INFO("dummy output not available");
 
@@ -699,7 +700,7 @@ void Simulator::poll_container()
     memset(&aout, 0, sizeof(aout));
     _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
 
-    uint64_t timestamp = hrt_absolute_time();
+    uint64_t timestamp;
 
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
@@ -771,11 +772,10 @@ void Simulator::poll_container()
 								// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								for (int j = 0; j < 16; j++) 
 									aout.output[j] = ctrl.controls[j];
+								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
 								int dummy_multi;
-								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_HIGH);
-
-								// orb_publish(ORB_ID(actuator_dummy_outputs), _dummy_pub, &aout);
+								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
 						}
 						else if (msg.msgid != 0) {
