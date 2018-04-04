@@ -3027,7 +3027,6 @@ protected:
 			msg.buttons |= (manual.offboard_switch << (shift * 5));
 
 			mavlink_msg_manual_control_send_struct(_mavlink->get_channel(), &msg);
-
 			return true;
 		}
 

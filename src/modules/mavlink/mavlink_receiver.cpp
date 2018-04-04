@@ -82,7 +82,8 @@
 #include <systemlib/airspeed.h>
 #include <commander/px4_custom_mode.h>
 #include <geo/geo.h>
-
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <uORB/topics/vehicle_command_ack.h>
 
 #include "mavlink_bridge_header.h"
@@ -91,6 +92,8 @@
 #include "mavlink_command_sender.h"
 
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
+
+
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_mavlink(parent),
@@ -1670,25 +1673,65 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 
 		if (_rc_pub == nullptr) {
 			_rc_pub = orb_advertise(ORB_ID(input_rc), &rc);
-
 		} else {
 			orb_publish(ORB_ID(input_rc), _rc_pub, &rc);
 		}
 
 	} else {
-		struct manual_control_setpoint_s manual = {};
+		struct manual_control_setpoint_s manual = { };
 
 		manual.timestamp = hrt_absolute_time();
 		manual.x = man.x / 1000.0f;
 		manual.y = man.y / 1000.0f;
 		manual.r = man.r / 1000.0f;
 		manual.z = man.z / 1000.0f;
-		manual.data_source = manual_control_setpoint_s::SOURCE_MAVLINK_0 + _mavlink->get_instance_id();
+		manual.data_source = manual_control_setpoint_s::SOURCE_MAVLINK_0
+				+ _mavlink->get_instance_id();
 
 		int m_inst;
-		orb_publish_auto(ORB_ID(manual_control_setpoint), &_manual_pub, &manual, &m_inst, ORB_PRIO_LOW);
+		orb_publish_auto(ORB_ID(manual_control_setpoint), &_manual_pub, &manual,
+				&m_inst, ORB_PRIO_LOW);
+//		PX4_INFO("manual_control_setpoint %f", (double )man.x);
+
+		/* Forward Virtual Joystick message received from QGC
+		 * @Zhiwei Apr. 3, 2018*/
+		/*zhiwei adds, send msg to another px4, udp port 14562*/
+
+		// convery mavlink message to raw data
+		// try to setup udp socket for communcation with simulator
+
+//		sockaddr_in _con_send_addr;
+//		static int _fd;
+//		//static unsigned char _buf[1024];
+//		static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
+//		// convery mavlink message to raw data
+//		uint16_t bufLen = 0;
+//		bufLen = mavlink_msg_to_send_buffer(buf, msg);
+//
+//
+//		memset((char *) &_con_send_addr, 0, sizeof(_con_send_addr));
+//		_con_send_addr.sin_family = AF_INET;
+//		_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//		_con_send_addr.sin_port = htons(14656);
+//
+//		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+//			PX4_WARN("create socket failed\n");
+//			return;
+//		}
+//
+//		static socklen_t _addrlen = sizeof(_con_send_addr);
+//			// send data
+//			ssize_t send_len = sendto(_fd, buf, bufLen, 0,
+//					(struct sockaddr *) &_con_send_addr, _addrlen);
+//			if (send_len <= 0) {
+//				PX4_WARN("*****Failed sending mavlink message*");
+//			}
+//			/* end */
+//
 	}
 }
+
+//void
 
 void
 MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)

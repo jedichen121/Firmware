@@ -767,9 +767,9 @@ void Simulator::poll_container()
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
-							// PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
+//							 PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
 							if (check_control_value(ctrl)) {
-								// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+//								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								for (int j = 0; j < 16; j++) 
 									aout.output[j] = ctrl.controls[j];
 								timestamp = hrt_absolute_time();
@@ -972,10 +972,10 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		fds[1].events = POLLIN;
 		fd_count++;
 
-		PX4_INFO("Start using %s for radio control input.", PIXHAWK_DEVICE);
+		PX4_INFO("********************************Start using %s for radio control input.", PIXHAWK_DEVICE);
 
 	} else {
-		PX4_INFO("Not using %s for radio control input. Assuming joystick input via MAVLink.", PIXHAWK_DEVICE);
+		PX4_INFO("*******************************Not using %s for radio control input. Assuming joystick input via MAVLink.", PIXHAWK_DEVICE);
 	}
 
 #endif

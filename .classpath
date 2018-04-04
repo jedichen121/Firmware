@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="Tools/jMAVSim/jMAVlib/src"/>
+	<classpathentry kind="src" path="Tools/jMAVSim/src"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/annotations.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt-natives-linux-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt-natives-linux-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt-natives-macosx-universal.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt-natives-windows-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt-natives-windows-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/gluegen-rt.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/j3dcore.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/j3dutils.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal-natives-linux-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal-natives-linux-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal-natives-macosx-universal.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal-natives-windows-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal-natives-windows-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/joal.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all-natives-linux-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all-natives-linux-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all-natives-macosx-universal.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all-natives-windows-amd64.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all-natives-windows-i586.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jogl-all.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/jssc.jar"/>
+	<classpathentry kind="lib" path="Tools/jMAVSim/lib/vecmath.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

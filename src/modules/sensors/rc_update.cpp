@@ -253,7 +253,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 {
 	bool rc_updated;
 	orb_check(_rc_sub, &rc_updated);
-
+//	PX4_INFO("***********rc_updated %d*************", rc_updated);
 	if (rc_updated) {
 		/* read low-level values from FMU or IO RC inputs (PPM, Spektrum, S.Bus) */
 		struct rc_input_values rc_input;
