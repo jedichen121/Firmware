@@ -211,6 +211,7 @@ static void run_cmd(const vector<string> &appargs, bool exit_on_fail, bool silen
 
 		while (i < appargs.size() && appargs[i] != "") {
 			arg[i] = (char *)appargs[i].c_str();
+			// cout << arg[i] << endl;
 			++i;
 		}
 
