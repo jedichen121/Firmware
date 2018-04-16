@@ -75,9 +75,9 @@ static int _fd;
 static int _fd2;
 static int _fd3;
 static unsigned char _buf[1024];
-sockaddr_in _srcaddr;
-sockaddr_in _con_send_addr;
-sockaddr_in _dummy_addr;
+static sockaddr_in _srcaddr;
+static sockaddr_in _con_send_addr;
+static sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 static hrt_abstime batt_sim_start = 0;
 

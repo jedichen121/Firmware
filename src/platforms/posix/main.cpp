@@ -53,6 +53,10 @@
 #include "DriverFramework.hpp"
 #include <termios.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <pthread.h>
+
 
 namespace px4
 {
@@ -74,6 +78,14 @@ const unsigned path_max_len = 1024;
 static volatile bool _ExitFlag = false;
 
 static struct termios orig_term;
+
+static int _fd_send;
+static int _fd_recv;
+
+static sockaddr_in _dummy_addr;
+static socklen_t _addrlen = sizeof(_dummy_addr);
+
+
 
 extern "C" {
 	void _SigIntHandler(int sig_num);
@@ -286,6 +298,84 @@ static void set_cpu_scaling()
 	//system("echo 1190400 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq");
 #endif
 }
+
+
+
+// void *recv_trampoline(void * unused)
+// {
+// 	comm_recv();
+// 	return nullptr;
+// }
+
+static void *comm_recv(void *arg)
+{
+	// udp socket for receiving from container
+	struct sockaddr_in _recv_addr;
+
+	// try to setup udp socket for communcation with simulator
+	memset((char *)&_recv_addr, 0, sizeof(_recv_addr));
+	_recv_addr.sin_family = AF_INET;
+	_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_recv_addr.sin_port = htons(14670);
+
+	if ((_fd_recv = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return 0;
+	}
+
+	if (bind(_fd_recv, (struct sockaddr *)&_recv_addr, sizeof(_recv_addr)) < 0) {
+		PX4_WARN("bind failed\n");
+		return 0;
+	}
+
+	struct pollfd fds[2];
+	memset(fds, 0, sizeof(fds));
+	unsigned fd_count = 1;
+	fds[0].fd = _fd_recv;
+	fds[0].events = POLLIN;
+	int len = 0;
+	unsigned char _buffer[CMD_BUFF_SIZE];
+	string mystr;
+
+	int pret = -1;
+
+	while (true) {
+		// wait for up to 1000ms for data
+		pret = ::poll(&fds[0], fd_count, 1000);
+
+		// timed out
+		if (pret == 0) {
+			// PX4_WARN("px4_poll timed out");
+			continue;
+		}
+
+		// this is undesirable but not much we can do
+		if (pret < 0) {
+			PX4_WARN("poll error for container %d, %d", pret, errno);
+			continue;
+		}
+
+		if (fds[0].revents & POLLIN) {
+			// got new data from container, try to publish data
+			len = recvfrom(_fd_recv, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_dummy_addr, &_addrlen);
+
+			if (len > 0) {
+				mystr = (const char*) _buffer;
+
+				cout << "received: " << mystr;
+				// process_line(mystr, false);
+				cout << endl;
+				mystr = "";
+
+				print_prompt();
+			}
+
+		}
+	}
+}
+
+
+
 
 #ifdef __PX4_SITL_MAIN_OVERRIDE
 int SITL_MAIN(int argc, char **argv);
@@ -507,6 +597,44 @@ int main(int argc, char **argv)
 		int buf_ptr_write = 0;
 		int buf_ptr_read = 0;
 
+		// create a thread for receiving data from other pxh
+		pthread_t recv_thread;
+
+		// initialize threads
+		pthread_attr_t recv_thread_attr;
+		pthread_attr_init(&recv_thread_attr);
+		pthread_attr_setstacksize(&recv_thread_attr, PX4_STACK_ADJUSTED(4000));
+
+		struct sched_param param;
+		(void)pthread_attr_getschedparam(&recv_thread_attr, &param);
+
+		/* low priority */
+		param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
+		(void)pthread_attr_setschedparam(&recv_thread_attr, &param);
+
+		pthread_create(&recv_thread, &recv_thread_attr, comm_recv, nullptr);
+		pthread_attr_destroy(&recv_thread_attr);
+
+
+		// buffer for sending commands
+		// char _buf[1024];
+
+		// udp socket data for sending command
+		struct sockaddr_in _send_comm_addr;
+		ssize_t send_len;
+
+		// try to setup udp socket
+		memset((char *)&_send_comm_addr, 0, sizeof(_send_comm_addr));
+		_send_comm_addr.sin_family = AF_INET;
+		_send_comm_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		_send_comm_addr.sin_port = htons(14670);
+
+		if ((_fd_send = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			PX4_ERR("Error commands file not specified");
+			return -1;
+		}
+
+
 		print_prompt();
 
 		// change input mode so that we can manage shell
@@ -553,6 +681,15 @@ int main(int argc, char **argv)
 
 				cout << endl;
 				process_line(mystr, false);
+				// if (mystr.length() > 0) {
+				// 	send_len = sendto(_fd_send, mystr.c_str(), mystr.length(), 0, (struct sockaddr *)&_send_comm_addr, _addrlen);
+				// 	if (send_len <= 0) {
+				// 		PX4_WARN("Failed sending mavlink message");
+				// 		send_len = 0;
+				// 	}
+				// }
+				
+
 				mystr = "";
 				buf_ptr_read = buf_ptr_write;
 
