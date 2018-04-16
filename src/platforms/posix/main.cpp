@@ -316,7 +316,7 @@ static void *comm_recv(void *arg)
 	memset((char *)&_recv_addr, 0, sizeof(_recv_addr));
 	_recv_addr.sin_family = AF_INET;
 	_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_recv_addr.sin_port = htons(14670);
+	_recv_addr.sin_port = htons(14671);
 
 	if ((_fd_recv = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
@@ -362,9 +362,8 @@ static void *comm_recv(void *arg)
 			if (len > 0) {
 				mystr = (const char*) _buffer;
 
-				cout << "received: " << mystr;
-				// process_line(mystr, false);
-				cout << endl;
+				cout << mystr;
+				process_line(mystr, false);
 				mystr = "";
 
 				print_prompt();
@@ -681,13 +680,13 @@ int main(int argc, char **argv)
 
 				cout << endl;
 				process_line(mystr, false);
-				// if (mystr.length() > 0) {
-				// 	send_len = sendto(_fd_send, mystr.c_str(), mystr.length(), 0, (struct sockaddr *)&_send_comm_addr, _addrlen);
-				// 	if (send_len <= 0) {
-				// 		PX4_WARN("Failed sending mavlink message");
-				// 		send_len = 0;
-				// 	}
-				// }
+				if (mystr.length() > 0) {
+					send_len = sendto(_fd_send, mystr.c_str(), mystr.length(), 0, (struct sockaddr *)&_send_comm_addr, _addrlen);
+					if (send_len <= 0) {
+						PX4_WARN("Failed sending mavlink message");
+						send_len = 0;
+					}
+				}
 				
 
 				mystr = "";
