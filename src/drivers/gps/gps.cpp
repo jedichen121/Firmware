@@ -85,13 +85,20 @@
 #include "devices/src/ubx.h"
 #include "devices/src/mtk.h"
 #include "devices/src/ashtech.h"
-
-
+#include <netinet/in.h>
+#include <uORB/topics/hil_sensor.h>
+#include "../mavlink/v2.0/common/mavlink.h"
+//#include "../modules/mavlink/mavlink_main.h"
+//#include "../modules/mavlink/mavlink_messages.h"
+//#include "../modules/mavlink/mavlink_command_sender.h"
+//#include "../modules/simulator/simulator.h"
+//#include "../modules/simulator/simulator_mavlink.cpp"
 #define TIMEOUT_5HZ 500
 #define RATE_MEASUREMENT_PERIOD 5000000
 #define GPS_WAIT_BEFORE_READ	20		// ms, wait before reading to save read() calls
 
-
+static int _fd;
+sockaddr_in _con_send_addr2;
 /* struct for dynamic allocation of satellite info data */
 struct GPS_Sat_Info {
 	struct satellite_info_s 	_data;
@@ -168,6 +175,9 @@ private:
 	unsigned			_last_rate_rtcm_injection_count; 		///< counter for number of RTCM messages
 	bool				_fake_gps;					///< fake gps output
 	Instance 			_instance;
+	 mavlink_hil_gps_t hil_gps_msg_;
+
+
 
 	int _orb_inject_data_fd;
 
@@ -199,6 +209,7 @@ private:
 	 * Publish the gps struct
 	 */
 	void 				publish();
+	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 
 	/**
 	 * Publish the satellite info
@@ -912,11 +923,66 @@ void
 GPS::publish()
 {
 	if (_instance == Instance::Main || _is_gps_main_advertised) {
-		orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance,
-				 ORB_PRIO_DEFAULT);
+
+		orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance, ORB_PRIO_DEFAULT);
 		_is_gps_main_advertised = true;
+
+		hil_gps_msg_.time_usec = _report_gps_pos.time_utc_usec;
+		hil_gps_msg_.fix_type = _report_gps_pos.fix_type;
+		hil_gps_msg_.lat = _report_gps_pos.lat;
+		hil_gps_msg_.lon = _report_gps_pos.lon;
+		hil_gps_msg_.alt = _report_gps_pos.alt;
+		hil_gps_msg_.eph = _report_gps_pos.eph;
+		hil_gps_msg_.epv = _report_gps_pos.epv;
+		hil_gps_msg_.vel = _report_gps_pos.vel_m_s;
+		hil_gps_msg_.vn = _report_gps_pos.vel_n_m_s;
+		hil_gps_msg_.ve = _report_gps_pos.vel_e_m_s;
+		hil_gps_msg_.vd = _report_gps_pos.vel_d_m_s;
+
+		//send GPS to container, mavlink copy from gazebo @Zivy
+		mavlink_message_t msg;
+		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg_);
+		send_mavlink_message2(&msg,14660);
+
 	}
 }
+//@Zivy
+void GPS::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
+
+	// udp socket data
+
+	// try to setup udp socket for communcation with simulator
+
+	memset((char *) &_con_send_addr2, 0, sizeof(_con_send_addr2));
+	_con_send_addr2.sin_family = AF_INET;
+	_con_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
+	if (destination_port != 0) {
+		_con_send_addr2.sin_port = htons(destination_port);
+	}
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return;
+	}
+
+	if (bind(_fd, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2))
+			< 0) {
+		PX4_WARN("bind failed\n");
+		return;
+	}
+
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
+
+	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
+	if (len <= 0) {
+		printf("Failed sending mavlink message\n");
+	}
+}
+
+
 
 void
 GPS::publishSatelliteInfo()
