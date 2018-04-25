@@ -672,6 +672,10 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	accel_report.y = accel_val_filt(1);
 	accel_report.z = accel_val_filt(2);
 
+	printf("x: %8.4f\n",(double)accel_report.x);
+	printf("y: %8.4f\n",(double)accel_report.y);
+	printf("z: %8.4f\n",(double)accel_report.z);
+
 	if (_mag_enabled) {
 		math::Vector<3> mag_val(data.mag_ga_x,
 					data.mag_ga_y,
