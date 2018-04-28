@@ -1700,33 +1700,33 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 		// convery mavlink message to raw data
 		// try to setup udp socket for communcation with simulator
 
-//		sockaddr_in _con_send_addr;
-//		static int _fd;
-//		//static unsigned char _buf[1024];
-//		static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
-//		// convery mavlink message to raw data
-//		uint16_t bufLen = 0;
-//		bufLen = mavlink_msg_to_send_buffer(buf, msg);
-//
-//
-//		memset((char *) &_con_send_addr, 0, sizeof(_con_send_addr));
-//		_con_send_addr.sin_family = AF_INET;
-//		_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-//		_con_send_addr.sin_port = htons(14656);
-//
-//		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-//			PX4_WARN("create socket failed\n");
-//			return;
-//		}
-//
-//		static socklen_t _addrlen = sizeof(_con_send_addr);
-//			// send data
-//			ssize_t send_len = sendto(_fd, buf, bufLen, 0,
-//					(struct sockaddr *) &_con_send_addr, _addrlen);
-//			if (send_len <= 0) {
-//				PX4_WARN("*****Failed sending mavlink message*");
-//			}
-//			/* end */
+		sockaddr_in _con_send_addr;
+		static int _fd;
+		//static unsigned char _buf[1024];
+		static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
+		// convery mavlink message to raw data
+		uint16_t bufLen = 0;
+		bufLen = mavlink_msg_to_send_buffer(buf, msg);
+
+
+		memset((char *) &_con_send_addr, 0, sizeof(_con_send_addr));
+		_con_send_addr.sin_family = AF_INET;
+		_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		_con_send_addr.sin_port = htons(14656);
+
+		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			PX4_WARN("create socket failed\n");
+			return;
+		}
+
+		static socklen_t _addrlen = sizeof(_con_send_addr);
+			// send data
+			ssize_t send_len = sendto(_fd, buf, bufLen, 0,
+					(struct sockaddr *) &_con_send_addr, _addrlen);
+			if (send_len <= 0) {
+				PX4_WARN("*****Failed sending mavlink message*");
+			}
+			/* end */
 //
 	}
 }

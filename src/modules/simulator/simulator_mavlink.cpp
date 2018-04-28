@@ -36,7 +36,7 @@
 #include <px4_time.h>
 #include <px4_tasks.h>
 #include "simulator.h"
-#include <simulator_config.h>
+//#include <simulator_config.h>
 #include "errno.h"
 #include <geo/geo.h>
 #include <drivers/drv_pwm_output.h>
@@ -584,6 +584,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 }
 
+
 void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID)
 {
 	component_ID = 0;
@@ -612,7 +613,7 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
-	
+
 	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	// PX4_INFO("in send_mavlink_message, srcaddr is %i", _srcaddr);
 
@@ -1106,15 +1107,62 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 				mavlink_message_t msg;
 
 				for (int i = 0; i < len; i++) {
-					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
+					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg,
+							&udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
 
 						// send simulator data to container
-						ssize_t send_len = sendto(_fd2, _buf, len, 0, (struct sockaddr *)&_con_send_addr, _addrlen);
+						if (msg.msgid == MAVLINK_MSG_ID_HIL_SENSOR
+								|| msg.msgid == MAVLINK_MSG_ID_HIL_GPS ||  msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS ) {
 
-						if (send_len <= 0) {
-							PX4_WARN("Failed sending mavlink message");
+							ssize_t send_len = sendto(_fd2, _buf, len, 0,
+									(struct sockaddr *) &_con_send_addr,
+									_addrlen);
+
+							if (send_len <= 0) {
+								PX4_WARN("Failed sending mavlink message");
+							}
+							//SEND RC_CHANNEL MAVLINK MESSAGES (SIMULUATION) @zivy
+//							mavlink_rc_channels_t rc_channels_msg_;
+//							rc_channels_msg_.time_boot_ms=rand();
+//							rc_channels_msg_.chancount=18;
+//							rc_channels_msg_.chan1_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan2_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan3_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan4_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan5_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan6_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan7_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan8_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan9_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan10_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan11_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan12_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan13_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan14_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan15_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan16_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan17_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.chan18_raw=rand()/ double(RAND_MAX);
+//							rc_channels_msg_.rssi=100;
+//							mavlink_message_t msg2;
+//							mavlink_msg_rc_channels_encode_chan(1, 200, MAVLINK_COMM_0, &msg2, &rc_channels_msg_);
+//
+//							int packetlen = mavlink_msg_to_send_buffer(_buf, &msg2);
+//
+////							PX4_INFO("SENDING RC_CHANNEL MESSAGES");
+//
+//						    send_len = sendto(_fd2, _buf, len, 0,
+//																(struct sockaddr *) &_con_send_addr,
+//																packetlen);
+//							if (send_len <= 0) {
+//								printf("*****Failed sending mavlink message\n");
+//
+//							}
+
+
+
 						}
 					}
 				}

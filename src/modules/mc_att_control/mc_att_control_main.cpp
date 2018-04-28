@@ -1381,6 +1381,8 @@ MulticopterAttitudeControl::task_main()
 		}
 
 		perf_end(_loop_perf);
+//		PX4_INFO("_v_rates_sp.roll= %f",(double)_v_rates_sp.roll/3.14*180);
+
 	}
 
 	_control_task = -1;
