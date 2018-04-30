@@ -46,7 +46,10 @@
 
 #include <uORB/uORB.h>
 #include <uORB/topics/input_rc.h>
-
+#include <netinet/in.h>
+#include <uORB/topics/rc_channels.h>
+#include "../mavlink/v1.0/common/mavlink.h"
+//#include <drivers/gps/gps.cpp>
 namespace navio_sysfs_rc_in
 {
 
@@ -56,7 +59,8 @@ extern "C" __EXPORT int navio_sysfs_rc_in_main(int argc, char *argv[]);
 
 #define RCINPUT_MEASURE_INTERVAL_US 20000 // microseconds
 
-
+static int _fd;
+sockaddr_in _con_send_addr2;
 class RcInput
 {
 public:
@@ -102,6 +106,7 @@ private:
 	struct input_rc_s _data;
 
 	int navio_rc_init();
+	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 };
 
 int RcInput::navio_rc_init()
@@ -208,8 +213,70 @@ void RcInput::_measure(void)
 	_data.input_source = input_rc_s::RC_INPUT_SOURCE_PX4IO_PPM;
 
 	orb_publish(ORB_ID(input_rc), _rcinput_pub, &_data);
+	//PX4_INFO("*******PUBLISHED INPUT_RC");
+
+	//send input_rc to container @zivy
+	mavlink_rc_channels_t rc_channels_msg_;
+	rc_channels_msg_.time_boot_ms = _data.timestamp;
+	rc_channels_msg_.chancount = _channels;
+	rc_channels_msg_.chan1_raw = _data.values[0];
+	rc_channels_msg_.chan2_raw = _data.values[1];
+	rc_channels_msg_.chan3_raw = _data.values[2];
+	rc_channels_msg_.chan4_raw = _data.values[3];
+	rc_channels_msg_.chan5_raw = _data.values[4];
+	rc_channels_msg_.chan6_raw = _data.values[5];
+	rc_channels_msg_.chan7_raw = _data.values[6];
+	rc_channels_msg_.chan8_raw = _data.values[7];
+	rc_channels_msg_.chan9_raw = _data.values[8];
+	rc_channels_msg_.chan10_raw = _data.values[9];
+	rc_channels_msg_.chan11_raw = _data.values[10];
+	rc_channels_msg_.chan12_raw = _data.values[11];
+	rc_channels_msg_.chan13_raw = _data.values[12];
+	rc_channels_msg_.chan14_raw = _data.values[13];
+	rc_channels_msg_.chan15_raw = _data.values[14];
+	rc_channels_msg_.chan16_raw = _data.values[15];
+	rc_channels_msg_.chan17_raw = _data.values[16];
+	rc_channels_msg_.chan18_raw = _data.values[17];
+	rc_channels_msg_.rssi = 100;
+	mavlink_message_t msg2;
+	mavlink_msg_rc_channels_encode_chan(1, 200, MAVLINK_COMM_0, &msg2, &rc_channels_msg_);
+	send_mavlink_message2(&msg2,14660);
+
 }
 
+void RcInput::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
+
+	// try to setup udp socket for communcation with simulator
+
+	memset((char *) &_con_send_addr2, 0, sizeof(_con_send_addr2));
+	_con_send_addr2.sin_family = AF_INET;
+	_con_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+	if (destination_port != 0) {
+		_con_send_addr2.sin_port = htons(destination_port);
+	}
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed");
+		return;
+	}
+
+
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+//	for (int i = 0; i < len; i++) {
+//		printf("%i ", buffer[i]);
+//	}printf("\n");
+
+}
 /**
  * Print the correct usage.
  */
