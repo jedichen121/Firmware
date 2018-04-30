@@ -87,13 +87,12 @@
 #include "devices/src/ashtech.h"
 #include <netinet/in.h>
 #include <uORB/topics/hil_sensor.h>
-#include "../mavlink/v2.0/common/mavlink.h"
+#include "../mavlink/v1.0/common/mavlink.h"
 //#include "../modules/mavlink/mavlink_main.h"
 //#include "../modules/mavlink/mavlink_messages.h"
 //#include "../modules/mavlink/mavlink_command_sender.h"
 //#include "../modules/simulator/simulator.h"
 //#include "../modules/simulator/simulator_mavlink.cpp"
-
 #define TIMEOUT_5HZ 500
 #define RATE_MEASUREMENT_PERIOD 5000000
 #define GPS_WAIT_BEFORE_READ	20		// ms, wait before reading to save read() calls
@@ -941,19 +940,18 @@ GPS::publish()
 		hil_gps_msg_.vn = _report_gps_pos.vel_n_m_s;
 		hil_gps_msg_.ve = _report_gps_pos.vel_e_m_s;
 		hil_gps_msg_.vd = _report_gps_pos.vel_d_m_s;
-		PX4_INFO("%f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)hil_gps_msg_.lat);
+//		PX4_INFO("%f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)hil_gps_msg_.lat);
 		//send GPS to container, mavlink copy from gazebo @Zivy
 		mavlink_message_t msg;
 		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_gps_msg_);
 		send_mavlink_message2(&msg,14660);
+//		PX4_INFO("Sent MAVLink message tpye is %i.", msg.msgid);
 
 //		send_mavlink_message3(MAVLINK_MSG_ID_HIL_GPS, &hil_gps_msg_,200);
 	}
 }
 //@Zivy
 void GPS::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
-
-	// udp socket data
 
 	// try to setup udp socket for communcation with simulator
 
@@ -963,7 +961,7 @@ void GPS::send_mavlink_message2(const mavlink_message_t *message, const int dest
 
 
 	if (destination_port != 0) {
-		_con_send_addr2.sin_port = htons(14660);
+		_con_send_addr2.sin_port = htons(destination_port);
 	}
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -975,13 +973,16 @@ void GPS::send_mavlink_message2(const mavlink_message_t *message, const int dest
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
-	PX4_INFO("SENDING GPS MESSAGES");
+//	PX4_INFO("SENDING GPS MESSAGES");
 
 	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
 	}
-//	PX4_INFO("***************SENDING DATA,len=%d", len);
+//	for (int i = 0; i < len; i++) {
+//		printf("%i ", buffer[i]);
+//	}printf("\n");
+
 }
 
 /*
