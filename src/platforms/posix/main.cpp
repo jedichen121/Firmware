@@ -55,6 +55,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <pthread.h>
 
 
@@ -315,16 +316,18 @@ static void *comm_recv(void *arg)
 	// try to setup udp socket for communcation with simulator
 	memset((char *)&_recv_addr, 0, sizeof(_recv_addr));
 	_recv_addr.sin_family = AF_INET;
-	_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// _recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	_recv_addr.sin_port = htons(14671);
-
+	_recv_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
+	// inet_aton("172.17.0.1", &_recv_addr.sin_addr.s_addr);
+	
 	if ((_fd_recv = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
 		return 0;
 	}
 
 	if (bind(_fd_recv, (struct sockaddr *)&_recv_addr, sizeof(_recv_addr)) < 0) {
-		PX4_WARN("bind failed\n");
+		PX4_WARN("bind failed for receiving from container\n");
 		return 0;
 	}
 
