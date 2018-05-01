@@ -55,6 +55,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <pthread.h>
 
 
@@ -626,6 +627,7 @@ int main(int argc, char **argv)
 		memset((char *)&_send_comm_addr, 0, sizeof(_send_comm_addr));
 		_send_comm_addr.sin_family = AF_INET;
 		_send_comm_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		_send_comm_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
 		_send_comm_addr.sin_port = htons(14671);
 
 		if ((_fd_send = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
