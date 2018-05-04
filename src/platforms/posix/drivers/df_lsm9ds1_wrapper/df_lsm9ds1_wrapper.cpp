@@ -69,6 +69,12 @@
 #include <lsm9ds1/LSM9DS1.hpp>
 #include <DevMgr.hpp>
 
+//#include <uORB/topics/hil_sensor_imu.h>
+#include "../mavlink/v1.0/common/mavlink.h"
+#include "../mavlink/v1.0/common/mavlink_msg_hil_sensor_imu.h"
+#include <netinet/in.h>
+
+
 // We don't want to auto publish, therefore set this to 0.
 #define LSM9DS1_NEVER_AUTOPUBLISH_US 0
 
@@ -110,11 +116,17 @@ private:
 	void _update_accel_calibration();
 	void _update_gyro_calibration();
 	void _update_mag_calibration();
+	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 
 	orb_advert_t		    _accel_topic;
 	orb_advert_t		    _gyro_topic;
 	orb_advert_t        	    _mag_topic;
 	orb_advert_t		    _mavlink_log_pub;
+
+	mavlink_hil_sensor_imu_t hil_sensor_imu_;
+
+	int _fd;
+	sockaddr_in _con_send_addr2;
 
 	int			    _param_update_sub;
 
@@ -674,7 +686,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 
 //	printf("~~~~x: %8.4f\n",(double)accel_report.x);
 //	printf("~~~~y: %8.4f\n",(double)accel_report.y);
-//	printf("~~~~z: %8.4f\n",(double)accel_report.z);_
+//	printf("~~~~z: %8.4f\n",(double)accel_report.z);
 
 
 	if (_mag_enabled) {
@@ -691,6 +703,20 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		mag_report.z = mag_val(2);
 	}
 
+	/*@zivy*/
+			hil_sensor_imu_.time_usec=accel_report.timestamp;
+			hil_sensor_imu_.xacc=accel_report.x;
+			hil_sensor_imu_.yacc=accel_report.y;
+			hil_sensor_imu_.zacc=accel_report.z;
+			hil_sensor_imu_.xgyro=gyro_report.x;
+			hil_sensor_imu_.ygyro=gyro_report.y;
+			hil_sensor_imu_.zgyro=gyro_report.z;
+			hil_sensor_imu_.xmag=mag_report.x;
+			hil_sensor_imu_.ymag=mag_report.y;
+			hil_sensor_imu_.zmag=mag_report.z;
+			mavlink_message_t msg;
+			mavlink_msg_hil_sensor_imu_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_sensor_imu_);
+		  //send_mavlink_message2(&msg,14660);
 	gyro_report.x_integral = gyro_val_integ(0);
 	gyro_report.y_integral = gyro_val_integ(1);
 	gyro_report.z_integral = gyro_val_integ(2);
@@ -714,7 +740,11 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		if (_mag_topic != nullptr) {
 			orb_publish(ORB_ID(sensor_mag), _mag_topic, &mag_report);
 		}
+		//sending messages
 
+		if(_mag_topic != nullptr || _accel_topic != nullptr || _gyro_topic != nullptr){
+			send_mavlink_message2(&msg,14660);
+		}
 		// Report if there are high vibrations, every 10 times it happens.
 		const bool threshold_reached = (data.accel_range_hit_counter - _last_accel_range_hit_count > 10);
 
@@ -737,6 +767,40 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	return 0;
 };
 
+
+void DfLsm9ds1Wrapper::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
+
+	// try to setup udp socket for communcation with simulator
+
+	memset((char *) &_con_send_addr2, 0, sizeof(_con_send_addr2));
+	_con_send_addr2.sin_family = AF_INET;
+	_con_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+	if (destination_port != 0) {
+		_con_send_addr2.sin_port = htons(destination_port);
+	}
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed");
+		return;
+	}
+
+
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+
+//	for (int i = 0; i < len; i++) {
+//		printf("%i ", buffer[i]);
+//	}printf("\n");
+}
 
 namespace df_lsm9ds1_wrapper
 {

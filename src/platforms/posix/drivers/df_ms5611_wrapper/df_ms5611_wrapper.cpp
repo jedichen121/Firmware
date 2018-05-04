@@ -60,6 +60,10 @@
 #include <ms5611/MS5611.hpp>
 #include <DevMgr.hpp>
 
+#include "../mavlink/v1.0/common/mavlink.h"
+#include "../mavlink/v1.0/common/mavlink_msg_hil_sensor_baro.h"
+#include <netinet/in.h>
+
 
 extern "C" { __EXPORT int df_ms5611_wrapper_main(int argc, char *argv[]); }
 
@@ -89,12 +93,17 @@ public:
 
 private:
 	int _publish(struct baro_sensor_data &data);
-
+	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 	orb_advert_t		_baro_topic;
 
-	int			_baro_orb_class_instance;
+	int _baro_orb_class_instance;
 
-	perf_counter_t		_baro_sample_perf;
+	perf_counter_t _baro_sample_perf;
+
+	mavlink_hil_sensor_baro_t hil_sensor_baro_;
+
+	int _fd;
+	sockaddr_in _con_send_addr2;
 
 };
 
@@ -192,12 +201,58 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 		} else {
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &baro_report);
 		}
+
+		//@zivy
+		hil_sensor_baro_.time_usec = baro_report.timestamp;
+		hil_sensor_baro_.abs_pressure = baro_report.pressure;
+		hil_sensor_baro_.diff_pressure = baro_report.pressure;
+		hil_sensor_baro_.pressure_alt = baro_report.altitude;
+		hil_sensor_baro_.temperature = baro_report.temperature;
+		mavlink_message_t msg;
+		mavlink_msg_hil_sensor_baro_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_sensor_baro_);
+		send_mavlink_message2(&msg,14660);
 	}
 
 	perf_end(_baro_sample_perf);
 
 	return 0;
-};
+}
+
+void DfMS5611Wrapper::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
+
+	// try to setup udp socket for communcation with simulator
+
+	memset((char *) &_con_send_addr2, 0, sizeof(_con_send_addr2));
+	_con_send_addr2.sin_family = AF_INET;
+	_con_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+	if (destination_port != 0) {
+		_con_send_addr2.sin_port = htons(destination_port);
+	}
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed");
+		return;
+	}
+
+
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+
+//	for (int i = 0; i < len; i++) {
+//		printf("%i ", buffer[i]);
+//	}printf("\n");
+}
+
+;
 
 
 namespace df_ms5611_wrapper
