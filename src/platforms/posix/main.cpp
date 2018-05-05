@@ -363,7 +363,7 @@ static void *comm_recv(void *arg)
 			if (len > 0) {
 				mystr = (const char*) _buffer;
 
-				cout << mystr;
+				cout << mystr << endl;
 				process_line(mystr, false);
 				mystr = "";
 
@@ -626,7 +626,7 @@ int main(int argc, char **argv)
 		// try to setup udp socket
 		memset((char *)&_send_comm_addr, 0, sizeof(_send_comm_addr));
 		_send_comm_addr.sin_family = AF_INET;
-		_send_comm_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		// _send_comm_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 		_send_comm_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
 		_send_comm_addr.sin_port = htons(14671);
 

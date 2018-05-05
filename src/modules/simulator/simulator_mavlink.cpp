@@ -46,6 +46,7 @@
 #include <conversion/rotation.h>
 #include <mathlib/mathlib.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <arpa/inet.h>
 
 extern "C" __EXPORT hrt_abstime hrt_reset(void);
 
@@ -185,7 +186,7 @@ void Simulator::send_controls()
 		
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
-		// PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
+		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
@@ -711,7 +712,8 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 	memset((char *)&_sendaddr, 0, sizeof(_sendaddr));
 	_sendaddr.sin_family = AF_INET;
-	_sendaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// _sendaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_sendaddr.sin_addr.s_addr = inet_addr("172.17.0.1");
 	_sendaddr.sin_port = htons(14600);
 
 	if ((_fd2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
