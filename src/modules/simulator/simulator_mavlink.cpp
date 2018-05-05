@@ -46,6 +46,8 @@
 #include <conversion/rotation.h>
 #include <mathlib/mathlib.h>
 #include <uORB/topics/vehicle_local_position.h>
+#include <arpa/inet.h>
+
 
 extern "C" __EXPORT hrt_abstime hrt_reset(void);
 
@@ -708,7 +710,8 @@ void Simulator::poll_container()
 	// try to setup udp socket for communcation with simulator
 	memset((char *)&_con_recv_addr, 0, sizeof(_con_recv_addr));
 	_con_recv_addr.sin_family = AF_INET;
-	_con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// _con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_recv_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
 	_con_recv_addr.sin_port = htons(14600);
 
 	if ((_fd3 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {

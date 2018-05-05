@@ -365,7 +365,7 @@ static void *comm_recv(void *arg)
 			if (len > 0) {
 				mystr = (const char*) _buffer;
 
-				cout << mystr;
+				cout << mystr << endl;
 				process_line(mystr, false);
 				mystr = "";
 
