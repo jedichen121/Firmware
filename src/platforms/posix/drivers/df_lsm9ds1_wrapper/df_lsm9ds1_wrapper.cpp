@@ -69,7 +69,9 @@
 #include <lsm9ds1/LSM9DS1.hpp>
 #include <DevMgr.hpp>
 
-#include "mavlink/v1.0/common/mavlink.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include "../mavlink/v1.0/common/mavlink.h"
 
 // We don't want to auto publish, therefore set this to 0.
 #define LSM9DS1_NEVER_AUTOPUBLISH_US 0
@@ -171,11 +173,12 @@ private:
 
 	hrt_abstime		    _last_accel_range_hit_time;
 	uint64_t		    _last_accel_range_hit_count;
-
+	
+	int _fd;
 	bool _mag_enabled;
 
 	// used for socket
-	int _fd;
+	
 	sockaddr_in _send_addr;
 
 };
@@ -186,7 +189,7 @@ DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
 	_gyro_topic(nullptr),
 	_mag_topic(nullptr),
 	_mavlink_log_pub(nullptr),
-	_hil_sensor(nullptr),
+//	_hil_sensor(nullptr),
 	_param_update_sub(-1),
 	_accel_calibration{},
 	_gyro_calibration{},
@@ -206,9 +209,9 @@ DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
 	_publish_perf(perf_alloc(PC_ELAPSED, "lsm9ds1_publish")),
 	_last_accel_range_hit_time(0),
 	_last_accel_range_hit_count(0),
-	_mag_enabled(mag_enabled);
-	_fd(0);
-	_send_addr(0)
+	_fd(nullptr),
+	_mag_enabled(mag_enabled)
+//	_send_addr(nullptr)
 {
 	// Set sane default calibration values
 	_accel_calibration.x_scale = 1.0f;
