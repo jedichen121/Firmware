@@ -136,6 +136,10 @@ int DfMS5611Wrapper::start()
 		PX4_ERR("MS5611 start fail: %d", ret);
 		return ret;
 	}
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed");
+//			return;
+	}
 
 	return 0;
 }
@@ -211,6 +215,7 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 		mavlink_message_t msg;
 		mavlink_msg_hil_sensor_baro_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_sensor_baro_);
 		send_mavlink_message2(&msg,14660);
+
 	}
 
 	perf_end(_baro_sample_perf);
@@ -231,10 +236,10 @@ void DfMS5611Wrapper::send_mavlink_message2(const mavlink_message_t *message, co
 		_con_send_addr2.sin_port = htons(destination_port);
 	}
 
-	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		PX4_WARN("create socket failed");
-		return;
-	}
+//	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+//		PX4_WARN("create socket failed");
+//		return;
+//	}
 
 
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];

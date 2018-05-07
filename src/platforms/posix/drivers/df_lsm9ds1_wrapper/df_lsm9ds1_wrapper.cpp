@@ -308,6 +308,11 @@ int DfLsm9ds1Wrapper::start()
 	_update_gyro_calibration();
 	_update_mag_calibration();
 
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			PX4_WARN("create socket failed");
+//			return 0;
+		}
+
 	return 0;
 }
 
@@ -781,16 +786,16 @@ void DfLsm9ds1Wrapper::send_mavlink_message2(const mavlink_message_t *message, c
 		_con_send_addr2.sin_port = htons(destination_port);
 	}
 
-	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		PX4_WARN("create socket failed");
-		return;
-	}
+//	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+//		PX4_WARN("create socket failed");
+//		return;
+//	}
 
 
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
-//	PX4_INFO("SENDING GPS MESSAGES");
+//	PX4_INFO("SENDING IMU MESSAGES");
 
 	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
 	if (len <= 0) {
