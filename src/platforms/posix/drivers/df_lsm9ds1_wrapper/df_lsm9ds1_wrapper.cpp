@@ -69,6 +69,8 @@
 #include <lsm9ds1/LSM9DS1.hpp>
 #include <DevMgr.hpp>
 
+#include "mavlink/v1.0/common/mavlink.h"
+
 // We don't want to auto publish, therefore set this to 0.
 #define LSM9DS1_NEVER_AUTOPUBLISH_US 0
 
@@ -111,10 +113,14 @@ private:
 	void _update_gyro_calibration();
 	void _update_mag_calibration();
 
+	void send_mavlink_hil_sensor(const mavlink_message_t *msg);
+
 	orb_advert_t		    _accel_topic;
 	orb_advert_t		    _gyro_topic;
 	orb_advert_t        	    _mag_topic;
 	orb_advert_t		    _mavlink_log_pub;
+
+	mavlink_hil_sensor_t _hil_sensor;
 
 	int			    _param_update_sub;
 
@@ -167,6 +173,11 @@ private:
 	uint64_t		    _last_accel_range_hit_count;
 
 	bool _mag_enabled;
+
+	// used for socket
+	int _fd;
+	sockaddr_in _send_addr;
+
 };
 
 DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
@@ -175,6 +186,7 @@ DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
 	_gyro_topic(nullptr),
 	_mag_topic(nullptr),
 	_mavlink_log_pub(nullptr),
+	_hil_sensor(nullptr),
 	_param_update_sub(-1),
 	_accel_calibration{},
 	_gyro_calibration{},
@@ -194,7 +206,9 @@ DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
 	_publish_perf(perf_alloc(PC_ELAPSED, "lsm9ds1_publish")),
 	_last_accel_range_hit_time(0),
 	_last_accel_range_hit_count(0),
-	_mag_enabled(mag_enabled)
+	_mag_enabled(mag_enabled);
+	_fd(0);
+	_send_addr(0)
 {
 	// Set sane default calibration values
 	_accel_calibration.x_scale = 1.0f;
@@ -295,6 +309,17 @@ int DfLsm9ds1Wrapper::start()
 	_update_accel_calibration();
 	_update_gyro_calibration();
 	_update_mag_calibration();
+
+	// set up socket
+	memset((char *) &_send_addr, 0, sizeof(_send_addr));
+	_send_addr.sin_family = AF_INET; 
+	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_send_addr.sin_port = htons(14660);
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return;
+	}
 
 	return 0;
 }
@@ -698,6 +723,9 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	accel_report.y_integral = accel_val_integ(1);
 	accel_report.z_integral = accel_val_integ(2);
 
+
+
+
 	// TODO: when is this ever blocked?
 	if (!(m_pub_blocked)) {
 
@@ -713,6 +741,29 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		if (_mag_topic != nullptr) {
 			orb_publish(ORB_ID(sensor_mag), _mag_topic, &mag_report);
 		}
+
+		// send data to container
+		_hil_sensor.time_usec = accel_report.timestamp;
+		_hil_sensor.xacc = accel_report.x;
+		_hil_sensor.yacc = accel_report.y;
+		_hil_sensor.zacc = accel_report.z;
+		_hil_sensor.xgyro = gyro_report.x;
+		_hil_sensor.ygyro = gyro_report.y;
+		_hil_sensor.zgyro = gyro_report.z;
+		_hil_sensor.xmag = mag_report.x;
+		_hil_sensor.ymag = mag_report.y;
+		_hil_sensor.zmag = mag_report.z;
+
+		_hil_sensor.abs_pressure = 0;
+		_hil_sensor.diff_pressure = 0;
+		_hil_sensor.pressure_alt = 0;
+		_hil_sensor.temperature = -274; // impossible value for celsius temperature
+
+		// if(_mag_topic != nullptr || _accel_topic != nullptr || _gyro_topic != nullptr){
+		// 	send_mavlink_message2(&msg,14660);
+		// }
+
+
 
 		// Report if there are high vibrations, every 10 times it happens.
 		const bool threshold_reached = (data.accel_range_hit_counter - _last_accel_range_hit_count > 10);
@@ -735,6 +786,11 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	// TODO: check the return codes of this function
 	return 0;
 };
+
+
+void DfLsm9ds1Wrapper::send_mavlink_hil_sensor(const mavlink_message_t *msg) {
+
+}
 
 
 namespace df_lsm9ds1_wrapper
