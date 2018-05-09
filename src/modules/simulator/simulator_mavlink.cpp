@@ -221,9 +221,9 @@ static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t 
 void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 {
 
-	PX4_INFO("x: %8.4f\n", imu->xacc);
-	PX4_INFO("y: %8.4f\n", imu->yacc);
-	PX4_INFO("z: %8.4f\n", imu->zacc);
+	PX4_INFO("x: %8.4f\n", (double)imu->xacc);
+	PX4_INFO("y: %8.4f\n", (double)imu->yacc);
+	PX4_INFO("z: %8.4f\n", (double)imu->zacc);
 	// write sensor data to memory so that drivers can copy data from there
 	RawMPUData mpu = {};
 	mpu.accel_x = imu->xacc;
