@@ -209,7 +209,7 @@ DfLsm9ds1Wrapper::DfLsm9ds1Wrapper(bool mag_enabled, enum Rotation rotation) :
 	_publish_perf(perf_alloc(PC_ELAPSED, "lsm9ds1_publish")),
 	_last_accel_range_hit_time(0),
 	_last_accel_range_hit_count(0),
-	_fd(nullptr),
+	_fd(0),
 	_mag_enabled(mag_enabled)
 //	_send_addr(nullptr)
 {
@@ -321,7 +321,7 @@ int DfLsm9ds1Wrapper::start()
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
-		return;
+		return 1;
 	}
 
 	return 0;
@@ -700,10 +700,6 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	accel_report.y = accel_val_filt(1);
 	accel_report.z = accel_val_filt(2);
 
-	printf("x: %8.4f\n",(double)accel_report.x);
-	printf("y: %8.4f\n",(double)accel_report.y);
-	printf("z: %8.4f\n",(double)accel_report.z);
-
 	if (_mag_enabled) {
 		math::Vector<3> mag_val(data.mag_ga_x,
 					data.mag_ga_y,
@@ -761,10 +757,17 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		_hil_sensor.diff_pressure = 0;
 		_hil_sensor.pressure_alt = 0;
 		_hil_sensor.temperature = -274; // impossible value for celsius temperature
+		
+//		printf("x: %8.4f\n",(double)accel_report.x);
+//		printf("y: %8.4f\n",(double)accel_report.y);
+//		printf("z: %8.4f\n",(double)accel_report.z);
 
-		// if(_mag_topic != nullptr || _accel_topic != nullptr || _gyro_topic != nullptr){
-		// 	send_mavlink_message2(&msg,14660);
-		// }
+
+		if(_mag_topic != nullptr || _accel_topic != nullptr || _gyro_topic != nullptr){
+		 	mavlink_message_t msg;
+			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_sensor);
+			send_mavlink_hil_sensor(&msg);
+		}
 
 
 
@@ -792,6 +795,15 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 
 
 void DfLsm9ds1Wrapper::send_mavlink_hil_sensor(const mavlink_message_t *msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
 
 }
 
