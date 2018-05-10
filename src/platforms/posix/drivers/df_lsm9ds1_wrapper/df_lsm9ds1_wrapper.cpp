@@ -118,7 +118,6 @@ private:
 	void _update_accel_calibration();
 	void _update_gyro_calibration();
 	void _update_mag_calibration();
-	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 
 	void send_mavlink_hil_sensor(const mavlink_message_t *msg);
 

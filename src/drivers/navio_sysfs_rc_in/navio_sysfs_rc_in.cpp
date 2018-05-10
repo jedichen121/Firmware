@@ -58,9 +58,10 @@ extern "C" __EXPORT int navio_sysfs_rc_in_main(int argc, char *argv[]);
 #define RCINPUT_DEVICE_PATH_BASE "/sys/kernel/rcio/rcin"
 
 #define RCINPUT_MEASURE_INTERVAL_US 20000 // microseconds
+#define SEND_PORT 	14660
 
 static int _fd;
-sockaddr_in _con_send_addr2;
+sockaddr_in _send_addr;
 class RcInput
 {
 public:
@@ -106,7 +107,7 @@ private:
 	struct input_rc_s _data;
 
 	int navio_rc_init();
-	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
+	void send_mavlink_message(const mavlink_message_t *message);
 };
 
 int RcInput::navio_rc_init()
@@ -135,6 +136,19 @@ int RcInput::navio_rc_init()
 	if (_rcinput_pub == nullptr) {
 		PX4_WARN("error: advertise failed");
 		return -1;
+	}
+
+
+	// try to setup udp socket for communcation with simulator
+	memset((char *) &_send_addr, 0, sizeof(_send_addr));
+	_send_addr.sin_family = AF_INET;
+	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_send_addr.sin_port = htons(SEND_PORT);
+
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed");
+		return;
 	}
 
 	return 0;
@@ -238,29 +252,14 @@ void RcInput::_measure(void)
 	rc_channels_msg_.chan17_raw = _data.values[16];
 	rc_channels_msg_.chan18_raw = _data.values[17];
 	rc_channels_msg_.rssi = 100;
-	mavlink_message_t msg2;
-	mavlink_msg_rc_channels_encode_chan(1, 200, MAVLINK_COMM_0, &msg2, &rc_channels_msg_);
-	send_mavlink_message2(&msg2,14660);
+	mavlink_message_t msg;
+	mavlink_msg_rc_channels_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &rc_channels_msg_);
+	send_mavlink_message(&msg);
 
 }
 
-void RcInput::send_mavlink_message2(const mavlink_message_t *message, const int destination_port) {
+void RcInput::send_mavlink_message(const mavlink_message_t *message) {
 
-	// try to setup udp socket for communcation with simulator
-
-	memset((char *) &_con_send_addr2, 0, sizeof(_con_send_addr2));
-	_con_send_addr2.sin_family = AF_INET;
-	_con_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
-
-
-	if (destination_port != 0) {
-		_con_send_addr2.sin_port = htons(destination_port);
-	}
-
-	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		PX4_WARN("create socket failed");
-		return;
-	}
 
 
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
@@ -268,7 +267,7 @@ void RcInput::send_mavlink_message2(const mavlink_message_t *message, const int 
 
 //	PX4_INFO("SENDING GPS MESSAGES");
 
-	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_con_send_addr2, sizeof(_con_send_addr2));
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
 	}
@@ -277,6 +276,8 @@ void RcInput::send_mavlink_message2(const mavlink_message_t *message, const int 
 //	}printf("\n");
 
 }
+
+
 /**
  * Print the correct usage.
  */

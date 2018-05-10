@@ -379,7 +379,7 @@ void task_main(int argc, char *argv[])
 //				PX4_INFO("~~SENDING ACTUATOR OUTPUTS");
 
 				//send to container@zivy
-				poll_container();
+				// poll_container();
 			} else {
 				_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);
 			}
