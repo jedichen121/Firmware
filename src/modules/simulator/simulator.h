@@ -226,7 +226,7 @@ public:
 	void write_airspeed_data(void *buf);
 
 	bool isInitialized() { return _initialized; }
-
+   void send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID);
 private:
 	Simulator() : SuperBlock(nullptr, "SIM"),
 		_accel(1),
@@ -399,7 +399,8 @@ private:
 
 	void pack_actuator_message(mavlink_hil_actuator_controls_t &actuator_msg, unsigned index);
 	void pack_dummy_message(mavlink_hil_actuator_controls_t &msg);
-	void send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID);
+//	void send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID);
+//public: static void send_mavlink_message2( mavlink_message_t *message,  int destination_port=0);
 	void update_sensors(mavlink_hil_sensor_t *imu);
 	void update_gps(mavlink_hil_gps_t *gps_sim);
 	void parameters_update(bool force);

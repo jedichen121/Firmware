@@ -44,6 +44,7 @@
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/rc_channels.h>
+#include <uORB/topics/actuator_dummy_outputs.h>
 
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_mixer.h>
@@ -56,8 +57,21 @@
 #include "navio_sysfs.h"
 #include "PCA9685.h"
 #include "ocpoc_mmap.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <v1.0/mavlink_types.h>
+#include <v1.0/common/mavlink.h>
+static int _fd3;
+static int _fd;
+int32_t _system_type=MAV_TYPE_GROUND_ROVER;
+sockaddr_in _srcaddr;
+//sockaddr_in _con_send_addr;
+sockaddr_in _dummy_addr;
+static socklen_t _addrlen = sizeof(_srcaddr);
+#include <simulator/simulator.h>
 
 namespace linux_pwm_out
+
 {
 static px4_task_t _task_handle = -1;
 volatile bool _task_should_exit = false;
@@ -75,6 +89,7 @@ int     _armed_sub = -1;
 // publications
 orb_advert_t    _outputs_pub = nullptr;
 orb_advert_t    _rc_pub = nullptr;
+orb_advert_t    _dummy_pub = nullptr;
 
 // topic structures
 actuator_controls_s _controls[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
@@ -110,7 +125,8 @@ void task_main_trampoline(int argc, char *argv[]);
 void subscribe();
 
 void task_main(int argc, char *argv[]);
-
+void poll_container();
+int check_control_value(mavlink_hil_actuator_controls_t &msg);
 /* mixer initialization */
 int initialize_mixer(const char *mixer_filename);
 int mixer_control_callback(uintptr_t handle, uint8_t control_group, uint8_t control_index, float &input);
@@ -266,6 +282,9 @@ void task_main(int argc, char *argv[])
 			if (_controls_subs[i] >= 0) {
 				if (_poll_fds[poll_id].revents & POLLIN) {
 					orb_copy(_controls_topics[i], _controls_subs[i], &_controls[i]);
+				/*receive HIL_ACTUATOR_CONTROLS from container; copy from rover's simulator_mavlink.cpp @zivy*/
+
+
 				}
 
 				poll_id++;
@@ -357,7 +376,10 @@ void task_main(int argc, char *argv[])
 
 			if (_outputs_pub != nullptr) {
 				orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
+//				PX4_INFO("~~SENDING ACTUATOR OUTPUTS");
 
+				//send to container@zivy
+				poll_container();
 			} else {
 				_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);
 			}
@@ -387,6 +409,153 @@ void task_main(int argc, char *argv[])
 
 	_is_running = false;
 
+}
+
+/*copy from simulator_mavlink.cpp, written by Jiyang @zivy*/
+void poll_container()
+{
+
+	// set the threads name
+#ifdef __PX4_DARWIN
+	pthread_setname_np("poll_container");
+#else
+	pthread_setname_np(pthread_self(), "poll_container");
+#endif
+
+
+	/* advertise attitude topic */
+    struct actuator_dummy_outputs_s aout;
+    memset(&aout, 0, sizeof(aout));
+    _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
+
+    uint64_t timestamp;
+
+	// udp socket for receiving from container
+	struct sockaddr_in _con_recv_addr;
+
+	// try to setup udp socket for communcation with simulator
+	memset((char *)&_con_recv_addr, 0, sizeof(_con_recv_addr));
+	_con_recv_addr.sin_family = AF_INET;
+	_con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_recv_addr.sin_port = htons(14600);
+
+	if ((_fd3 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return;
+	}
+
+	if (bind(_fd3, (struct sockaddr *)&_con_recv_addr, sizeof(_con_recv_addr)) < 0) {
+		PX4_WARN("bind failed\n");
+		return;
+	}
+
+
+	struct pollfd fds[2];
+	memset(fds, 0, sizeof(fds));
+	unsigned fd_count = 1;
+	fds[0].fd = _fd3;
+	fds[0].events = POLLIN;
+	int len = 0;
+	unsigned char _buffer[MAVLINK_MAX_PACKET_LEN];
+
+	int pret = -1;
+	mavlink_status_t udp_status = {};
+
+	while (true) {
+		// wait for up to 100ms for data
+		pret = ::poll(&fds[0], fd_count, 100);
+
+		// timed out
+		if (pret == 0) {
+			// PX4_WARN("px4_poll timed out");
+			continue;
+		}
+
+		// this is undesirable but not much we can do
+		if (pret < 0) {
+			PX4_WARN("poll error for container %d, %d", pret, errno);
+			continue;
+		}
+
+		if (fds[0].revents & POLLIN) {
+			// got new data from container, try to publish data
+			len = recvfrom(_fd3, _buffer, sizeof(_buffer), 0, (struct sockaddr *)&_con_recv_addr, &_addrlen);
+
+			if (len > 0) {
+				// len = 0;
+				mavlink_message_t msg;
+
+				for (int i = 0; i < len; i++) {
+					msg.msgid = 0;
+					// mavlink_parse_char(MAVLINK_COMM_1, _buffer[i], &msg, &udp_status);
+					if (mavlink_parse_char(MAVLINK_COMM_1, _buffer[i], &msg, &udp_status)) {
+						// have a message, handle it
+						if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
+							// unpacking the mavlink data
+							mavlink_hil_actuator_controls_t ctrl;
+							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
+
+//							 PX4_INFO("%f %f %f %f %f %f", (double) ctrl.time_usec, (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
+							if (check_control_value(ctrl)) {
+//								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+								for (int j = 0; j < 16; j++)
+									aout.output[j] = ctrl.controls[j];
+								timestamp = hrt_absolute_time();
+								aout.timestamp = timestamp;
+								int dummy_multi;
+								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
+							}
+						}
+						else if (msg.msgid != 0) {
+							PX4_INFO("msgid is %d", msg.msgid);
+							ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+
+							if (send_len <= 0) {
+								PX4_WARN("Failed sending mavlink message");
+							}
+						}
+					}
+				}
+			}
+
+		}
+	}
+
+
+}
+
+int check_control_value(mavlink_hil_actuator_controls_t &msg)
+{
+	unsigned n;
+	unsigned error = 0;
+	if (_system_type == MAV_TYPE_GROUND_ROVER) {
+		n = 4;
+		for (unsigned i = 0; i < 16; i++) {
+			if (i < n) {
+				if (msg.controls[i] < 0 || msg.controls[i] > 1) {
+					error = 1;
+					break;
+				}
+			}
+			else {
+				if (msg.controls[i] < -1 || msg.controls[i] > 1) {
+					error = 1;
+					break;
+				}
+			}
+		}
+	}
+	else {
+		PX4_WARN("Unsupported vehivle type");
+		return 0;
+	}
+
+	if (error) {
+		PX4_WARN("Received error control message");
+		return 0;
+	}
+
+	return 1;
 }
 
 void task_main_trampoline(int argc, char *argv[])

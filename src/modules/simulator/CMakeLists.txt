@@ -33,7 +33,7 @@
 
 include_directories(${PX4_SOURCE_DIR}/mavlink/include/mavlink)
 
-option(ENABLE_UART_RC_INPUT "Enable RC Input from UART mavlink connection" OFF)
+option(ENABLE_UART_RC_INPUT "Enable RC Input from UART mavlink connection" ON)
 
 if(ENABLE_UART_RC_INPUT)
 	if (APPLE)

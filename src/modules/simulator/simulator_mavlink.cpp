@@ -36,7 +36,7 @@
 #include <px4_time.h>
 #include <px4_tasks.h>
 #include "simulator.h"
-#include <simulator_config.h>
+//#include <simulator_config.h>
 #include "errno.h"
 #include <geo/geo.h>
 #include <drivers/drv_pwm_output.h>
@@ -586,6 +586,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 }
 
+
 void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8_t component_ID)
 {
 	component_ID = 0;
@@ -614,7 +615,7 @@ void Simulator::send_mavlink_message(const uint8_t msgid, const void *msg, uint8
 
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len] = (uint8_t)(checksum & 0xFF);
 	buf[MAVLINK_NUM_HEADER_BYTES + payload_len + 1] = (uint8_t)(checksum >> 8);
-	
+
 	ssize_t len = sendto(_fd, buf, packet_len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 	// PX4_INFO("in send_mavlink_message, srcaddr is %i", _srcaddr);
 
@@ -771,8 +772,9 @@ void Simulator::poll_container()
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
 							PX4_INFO("%f %f %f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
+
 							if (check_control_value(ctrl)) {
-								// send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
+								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								for (int j = 0; j < 16; j++) 
 									aout.output[j] = ctrl.controls[j];
 								timestamp = hrt_absolute_time();
@@ -975,10 +977,10 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		fds[1].events = POLLIN;
 		fd_count++;
 
-		PX4_INFO("Start using %s for radio control input.", PIXHAWK_DEVICE);
+		PX4_INFO("********************************Start using %s for radio control input.", PIXHAWK_DEVICE);
 
 	} else {
-		PX4_INFO("Not using %s for radio control input. Assuming joystick input via MAVLink.", PIXHAWK_DEVICE);
+		PX4_INFO("*******************************Not using %s for radio control input. Assuming joystick input via MAVLink.", PIXHAWK_DEVICE);
 	}
 
 #endif
@@ -1109,15 +1111,22 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 				mavlink_message_t msg;
 
 				for (int i = 0; i < len; i++) {
-					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
+					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg,
+							&udp_status)) {
 						// have a message, handle it
 						handle_message(&msg, publish);
 
 						// send simulator data to container
-						ssize_t send_len = sendto(_fd2, _buf, len, 0, (struct sockaddr *)&_con_send_addr, _addrlen);
+						if (msg.msgid == MAVLINK_MSG_ID_HIL_SENSOR
+								|| msg.msgid == MAVLINK_MSG_ID_HIL_GPS ||  msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS ) {
 
-						if (send_len <= 0) {
-							PX4_WARN("Failed sending mavlink message");
+							ssize_t send_len = sendto(_fd2, _buf, len, 0,
+									(struct sockaddr *) &_con_send_addr,
+									_addrlen);
+
+							if (send_len <= 0) {
+								PX4_WARN("Failed sending mavlink message");
+							}
 						}
 					}
 				}

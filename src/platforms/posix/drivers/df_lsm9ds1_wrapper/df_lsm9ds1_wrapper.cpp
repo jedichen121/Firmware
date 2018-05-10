@@ -73,8 +73,12 @@
 #include <netinet/in.h>
 #include "../mavlink/v1.0/common/mavlink.h"
 
+
 // We don't want to auto publish, therefore set this to 0.
 #define LSM9DS1_NEVER_AUTOPUBLISH_US 0
+
+// send to container simulator port 
+#define SEND_PORT 	14660
 
 
 extern "C" { __EXPORT int df_lsm9ds1_wrapper_main(int argc, char *argv[]); }
@@ -114,6 +118,7 @@ private:
 	void _update_accel_calibration();
 	void _update_gyro_calibration();
 	void _update_mag_calibration();
+	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
 
 	void send_mavlink_hil_sensor(const mavlink_message_t *msg);
 
@@ -123,6 +128,7 @@ private:
 	orb_advert_t		    _mavlink_log_pub;
 
 	mavlink_hil_sensor_t _hil_sensor;
+
 
 	int			    _param_update_sub;
 
@@ -317,12 +323,13 @@ int DfLsm9ds1Wrapper::start()
 	memset((char *) &_send_addr, 0, sizeof(_send_addr));
 	_send_addr.sin_family = AF_INET; 
 	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_send_addr.sin_port = htons(14660);
+	_send_addr.sin_port = htons(SEND_PORT);
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
 		return 1;
 	}
+
 
 	return 0;
 }
@@ -700,6 +707,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	accel_report.y = accel_val_filt(1);
 	accel_report.z = accel_val_filt(2);
 
+
 	if (_mag_enabled) {
 		math::Vector<3> mag_val(data.mag_ga_x,
 					data.mag_ga_y,
@@ -714,6 +722,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		mag_report.z = mag_val(2);
 	}
 
+
 	gyro_report.x_integral = gyro_val_integ(0);
 	gyro_report.y_integral = gyro_val_integ(1);
 	gyro_report.z_integral = gyro_val_integ(2);
@@ -721,8 +730,6 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 	accel_report.x_integral = accel_val_integ(0);
 	accel_report.y_integral = accel_val_integ(1);
 	accel_report.z_integral = accel_val_integ(2);
-
-
 
 
 	// TODO: when is this ever blocked?
@@ -740,6 +747,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		if (_mag_topic != nullptr) {
 			orb_publish(ORB_ID(sensor_mag), _mag_topic, &mag_report);
 		}
+		//sending messages
 
 		// send data to container
 		_hil_sensor.time_usec = accel_report.timestamp;
@@ -768,8 +776,6 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_sensor);
 			send_mavlink_hil_sensor(&msg);
 		}
-
-
 
 		// Report if there are high vibrations, every 10 times it happens.
 		const bool threshold_reached = (data.accel_range_hit_counter - _last_accel_range_hit_count > 10);
@@ -801,11 +807,13 @@ void DfLsm9ds1Wrapper::send_mavlink_hil_sensor(const mavlink_message_t *msg) {
 //	PX4_INFO("SENDING GPS MESSAGES");
 
 	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
 	}
 
 }
+
 
 
 namespace df_lsm9ds1_wrapper
@@ -820,6 +828,7 @@ void usage();
 
 int start(bool mag_enabled, enum Rotation rotation)
 {
+//	PX4_INFO("^^^^^^^^START");
 	g_dev = new DfLsm9ds1Wrapper(mag_enabled, rotation);
 
 	if (g_dev == nullptr) {

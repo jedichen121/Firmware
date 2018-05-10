@@ -1259,6 +1259,8 @@ bool Logger::get_log_time(struct tm *tt, bool boot_time)
 {
 	int vehicle_gps_position_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 
+//	PX4_INFO("GPS: %d",vehicle_gps_position_sub );
+
 	if (vehicle_gps_position_sub < 0) {
 		return false;
 	}

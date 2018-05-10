@@ -103,6 +103,11 @@ extern "C" __EXPORT int mc_att_control_main(int argc, char *argv[]);
 
 #define MAX_GYRO_COUNT 3
 
+
+//sockaddr_in _con_send_addr;
+//static int _fd2;
+//static unsigned char _buf[1024];
+
 class MulticopterAttitudeControl
 {
 public:
@@ -716,7 +721,10 @@ MulticopterAttitudeControl::vehicle_manual_poll()
 
 	if (updated) {
 		orb_copy(ORB_ID(manual_control_setpoint), _manual_control_sp_sub, &_manual_control_sp);
-	}
+//		PX4_INFO("manual_control_setpoint %f", (double)_manual_control_sp.x);
+
+
+}
 }
 
 void
@@ -1373,6 +1381,8 @@ MulticopterAttitudeControl::task_main()
 		}
 
 		perf_end(_loop_perf);
+//		PX4_INFO("_v_rates_sp.roll= %f",(double)_v_rates_sp.roll/3.14*180);
+
 	}
 
 	_control_task = -1;
