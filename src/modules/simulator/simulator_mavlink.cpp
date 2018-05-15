@@ -135,12 +135,16 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 			break;
 		}
 
+		PX4_INFO("in simulator");
+		PX4_INFO("%f %f %f %f", (double) _actuators[index].output[0], (double) _actuators[index].output[1], (double) _actuators[index].output[2], (double) _actuators[index].output[3]);
+
+
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
 				if (i < n) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to 0..1 for rotors */
 					msg.controls[i] = (_actuators[index].output[i] - PWM_DEFAULT_MIN) / (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN);
-
+					PX4_INFO("%f %f %i %i", (double) _actuators[index].output[i], (double) msg.controls[i], PWM_DEFAULT_MIN, PWM_DEFAULT_MAX);
 				} else {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for other channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);

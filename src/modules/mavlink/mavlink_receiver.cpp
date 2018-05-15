@@ -94,7 +94,7 @@
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 static sockaddr_in _con_send_addr;
 static int _fd;
-static socklen_t _addrlen = sizeof(_srcaddr);
+static socklen_t _addrlen = sizeof(_con_send_addr);
 
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
@@ -2479,7 +2479,7 @@ MavlinkReceiver::receive_thread(void *arg)
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
-		return;
+		return nullptr;
 	}
 
 	while (!_mavlink->_task_should_exit) {

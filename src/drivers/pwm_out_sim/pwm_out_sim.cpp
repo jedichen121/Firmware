@@ -473,9 +473,13 @@ PWMSim::task_main()
 			}
 
 			/* do mixing */
+			PX4_INFO("mixing");
+			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
 			num_outputs = _mixers->mix(&outputs.output[0], num_outputs);
 			outputs.noutputs = num_outputs;
 			outputs.timestamp = hrt_absolute_time();
+			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
+			
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = 0; i < sizeof(outputs.output) / sizeof(outputs.output[0]); i++) {
@@ -494,6 +498,7 @@ PWMSim::task_main()
 					/* scale for PWM output 1000 - 2000us */
 					outputs.output[i] = 1500 + (500 * outputs.output[i]);
 
+
 				} else {
 					/*
 					 * Value is NaN, INF or out of band - set to the minimum value.
@@ -504,6 +509,8 @@ PWMSim::task_main()
 				}
 			}
 
+			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
+			
 			/* overwrite outputs in case of force_failsafe */
 			if (_failsafe) {
 				for (size_t i = 0; i < num_outputs; i++) {
