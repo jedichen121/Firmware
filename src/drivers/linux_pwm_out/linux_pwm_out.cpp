@@ -53,6 +53,9 @@
 #include <systemlib/param/param.h>
 #include <systemlib/pwm_limit/pwm_limit.h>
 
+#include <pthread.h>
+
+
 #include "common.h"
 #include "navio_sysfs.h"
 #include "PCA9685.h"
@@ -121,6 +124,7 @@ void start();
 void stop();
 
 void task_main_trampoline(int argc, char *argv[]);
+void poll_container_trampoline(void * /*unused*/);
 
 void subscribe();
 
@@ -240,6 +244,27 @@ void task_main(int argc, char *argv[])
 	}
 
 	_mixer_group->groups_required(_groups_required);
+
+
+	// create a thread for getting data from container
+	pthread_t poll_container_thread;
+
+	// initialize threads
+	pthread_attr_t poll_container_thread_attr;
+	pthread_attr_init(&poll_container_thread_attr);
+	pthread_attr_setstacksize(&poll_container_thread_attr, PX4_STACK_ADJUSTED(4000));
+
+	struct sched_param param;
+	(void)pthread_attr_getschedparam(&sender_thread_attr, &param);
+
+	/* low priority */
+	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
+	(void)pthread_attr_getschedparam(&poll_container_thread_attr, &param);
+
+	pthread_create(&poll_container_thread, &poll_container_thread_attr, Simulator::poll_container_trampoline, nullptr);
+	pthread_attr_destroy(&poll_container_thread_attr);
+
+
 	// subscribe and set up polling
 	subscribe();
 
@@ -411,6 +436,12 @@ void task_main(int argc, char *argv[])
 
 }
 
+
+void poll_container_trampoline(void * /*unused*/)
+{
+	poll_container();
+}
+
 /*copy from simulator_mavlink.cpp, written by Jiyang @zivy*/
 void poll_container()
 {
@@ -508,7 +539,7 @@ void poll_container()
 						}
 						else if (msg.msgid != 0) {
 							PX4_INFO("msgid is %d", msg.msgid);
-							ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
+							// ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
 							if (send_len <= 0) {
 								PX4_WARN("Failed sending mavlink message");
