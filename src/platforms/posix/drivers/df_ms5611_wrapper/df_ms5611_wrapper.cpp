@@ -61,7 +61,7 @@
 #include <DevMgr.hpp>
 
 #include "../mavlink/v1.0/common/mavlink.h"
-#include "../mavlink/v1.0/common/mavlink_msg_hil_sensor_baro.h"
+// #include "../mavlink/v1.0/common/mavlink_msg_hil_sensor_baro.h"
 #include <netinet/in.h>
 
 
@@ -96,14 +96,14 @@ public:
 
 private:
 	int _publish(struct baro_sensor_data &data);
-	void send_mavlink_message2(const mavlink_message_t *message, const int destination_port);
+	void send_mavlink_hil_baro(const mavlink_message_t *msg);
 	orb_advert_t		_baro_topic;
 
 	int _baro_orb_class_instance;
 
 	perf_counter_t _baro_sample_perf;
 
-	mavlink_hil_sensor_baro_t hil_sensor_baro_;
+	mavlink_hil_sensor_t _hil_sensor;
 
 	int _fd;
 	sockaddr_in _send_addr;
@@ -177,6 +177,10 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 	baro_report.pressure = data.pressure_pa / 100.0f; // convert to mbar
 	baro_report.temperature = data.temperature_c;
 
+	
+
+
+
 	// TODO: verify this, it's just copied from the MS5611 driver.
 
 	// Constant for now
@@ -216,14 +220,32 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &baro_report);
 		}
 
-		//@zivy
-		hil_sensor_baro_.time_usec = baro_report.timestamp;
-		hil_sensor_baro_.abs_pressure = baro_report.pressure;
-		hil_sensor_baro_.diff_pressure = baro_report.pressure;
-		hil_sensor_baro_.pressure_alt = baro_report.altitude;
-		hil_sensor_baro_.temperature = baro_report.temperature;
+		// //@zivy
+		// hil_sensor_baro_.time_usec = baro_report.timestamp;
+		// hil_sensor_baro_.abs_pressure = baro_report.pressure;
+		// hil_sensor_baro_.diff_pressure = baro_report.pressure;
+		// hil_sensor_baro_.pressure_alt = baro_report.altitude;
+		// hil_sensor_baro_.temperature = baro_report.temperature;
+
+		_hil_sensor.time_usec = 0;
+		_hil_sensor.xacc = 0;
+		_hil_sensor.yacc = 0;
+		_hil_sensor.zacc = 0;
+		_hil_sensor.xgyro = 0;
+		_hil_sensor.ygyro = 0;
+		_hil_sensor.zgyro = 0;
+		_hil_sensor.xmag = 0;
+		_hil_sensor.ymag = 0;
+		_hil_sensor.zmag = 0;
+
+		_hil_sensor.abs_pressure = baro_report.pressure;
+		_hil_sensor.diff_pressure = baro_report.pressure;
+		_hil_sensor.pressure_alt = baro_report.altitude;
+		_hil_sensor.temperature = baro_report.temperature;
+
+
 		mavlink_message_t msg;
-		mavlink_msg_hil_sensor_baro_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &hil_sensor_baro_);
+		mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_sensor);
 		send_mavlink_hil_baro(&msg);
 
 	}
