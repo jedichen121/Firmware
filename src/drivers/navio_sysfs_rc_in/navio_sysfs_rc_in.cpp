@@ -148,7 +148,7 @@ int RcInput::navio_rc_init()
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed");
-		return;
+		return -1;
 	}
 
 	return 0;

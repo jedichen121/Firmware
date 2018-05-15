@@ -65,7 +65,7 @@
 #include <v1.0/mavlink_types.h>
 #include <v1.0/common/mavlink.h>
 static int _fd3;
-static int _fd;
+// static int _fd;
 int32_t _system_type=MAV_TYPE_GROUND_ROVER;
 sockaddr_in _srcaddr;
 //sockaddr_in _con_send_addr;
@@ -124,7 +124,7 @@ void start();
 void stop();
 
 void task_main_trampoline(int argc, char *argv[]);
-void poll_container_trampoline(void * /*unused*/);
+void *poll_container_trampoline(void * /*unused*/);
 
 void subscribe();
 
@@ -255,13 +255,13 @@ void task_main(int argc, char *argv[])
 	pthread_attr_setstacksize(&poll_container_thread_attr, PX4_STACK_ADJUSTED(4000));
 
 	struct sched_param param;
-	(void)pthread_attr_getschedparam(&sender_thread_attr, &param);
+	(void)pthread_attr_getschedparam(&poll_container_thread_attr, &param);
 
 	/* low priority */
 	param.sched_priority = SCHED_PRIORITY_DEFAULT + 40;
 	(void)pthread_attr_getschedparam(&poll_container_thread_attr, &param);
 
-	pthread_create(&poll_container_thread, &poll_container_thread_attr, Simulator::poll_container_trampoline, nullptr);
+	pthread_create(&poll_container_thread, &poll_container_thread_attr, poll_container_trampoline, nullptr);
 	pthread_attr_destroy(&poll_container_thread_attr);
 
 
@@ -437,9 +437,10 @@ void task_main(int argc, char *argv[])
 }
 
 
-void poll_container_trampoline(void * /*unused*/)
+void *poll_container_trampoline(void * /*unused*/)
 {
 	poll_container();
+	return nullptr;
 }
 
 /*copy from simulator_mavlink.cpp, written by Jiyang @zivy*/
@@ -541,9 +542,9 @@ void poll_container()
 							PX4_INFO("msgid is %d", msg.msgid);
 							// ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
 
-							if (send_len <= 0) {
-								PX4_WARN("Failed sending mavlink message");
-							}
+							// if (send_len <= 0) {
+							//	PX4_WARN("Failed sending mavlink message");
+							// }
 						}
 					}
 				}
