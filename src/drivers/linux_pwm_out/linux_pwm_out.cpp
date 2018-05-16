@@ -64,6 +64,9 @@
 #include <netinet/in.h>
 #include <v1.0/mavlink_types.h>
 #include <v1.0/common/mavlink.h>
+#include <drivers/drv_pwm_output.h>
+
+
 static int _fd3;
 // static int _fd;
 int32_t _system_type=MAV_TYPE_GROUND_ROVER;
@@ -131,6 +134,8 @@ void subscribe();
 void task_main(int argc, char *argv[]);
 void poll_container();
 int check_control_value(mavlink_hil_actuator_controls_t &msg);
+void convert_to_output(struct actuator_dummy_outputs_s &aout, mavlink_hil_actuator_controls_t &ctrl);
+
 /* mixer initialization */
 int initialize_mixer(const char *mixer_filename);
 int mixer_control_callback(uintptr_t handle, uint8_t control_group, uint8_t control_index, float &input);
@@ -530,30 +535,22 @@ void poll_container()
 //							 PX4_INFO("%f %f %f %f %f %f", (double) ctrl.time_usec, (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
 							if (check_control_value(ctrl)) {
 //								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
-								for (int j = 0; j < 16; j++)
-									aout.output[j] = ctrl.controls[j];
+								// for (int j = 0; j < 16; j++)
+								// 	aout.output[j] = ctrl.controls[j];
+								convert_to_output(&aout, &ctrl);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
 								int dummy_multi;
 								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
 						}
-						else if (msg.msgid != 0) {
+						else if (msg.msgid != 0) 
 							PX4_INFO("msgid is %d", msg.msgid);
-							// ssize_t send_len = sendto(_fd, _buffer, len, 0, (struct sockaddr *)&_srcaddr, _addrlen);
-
-							// if (send_len <= 0) {
-							//	PX4_WARN("Failed sending mavlink message");
-							// }
-						}
 					}
 				}
 			}
-
 		}
 	}
-
-
 }
 
 int check_control_value(mavlink_hil_actuator_controls_t &msg)
@@ -588,6 +585,22 @@ int check_control_value(mavlink_hil_actuator_controls_t &msg)
 	}
 
 	return 1;
+}
+
+
+// convert simulator control value back to raw output value
+// revert process of Simulator::pack_actuator_message in simulator_mavlink.cpp
+void convert_to_output(struct actuator_dummy_outputs_s &aout, mavlink_hil_actuator_controls_t &ctrl)
+{
+	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
+
+	for (int i = 0; i < 16; i++)
+		// this only works for quadcopter for now
+		if (i < 4)
+			aout.output[i] = ctrl.controls[i] * (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) + PWM_DEFAULT_MIN;
+		else
+			aout.output[i] = ctrl.controls[i] * ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2) + pwm_center;
+
 }
 
 void task_main_trampoline(int argc, char *argv[])
