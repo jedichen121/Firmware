@@ -354,6 +354,8 @@ void task_main(int argc, char *argv[])
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
 				_outputs.output[i] = NAN;
 			}
+			
+//			PX4_INFO("%f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double)  _outputs.output[2], (double)  _outputs.output[3], (double)  _outputs.output[4]);
 
 			const uint16_t reverse_mask = 0;
 			uint16_t disarmed_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
@@ -532,12 +534,12 @@ void poll_container()
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
-//							 PX4_INFO("%f %f %f %f %f %f", (double) ctrl.time_usec, (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
+							 PX4_INFO("%f %f %f %f %f %f", (double) ctrl.time_usec, (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3], (double) ctrl.controls[4], (double) ctrl.controls[5]);
 							if (check_control_value(ctrl)) {
 //								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								// for (int j = 0; j < 16; j++)
 								// 	aout.output[j] = ctrl.controls[j];
-								convert_to_output(&aout, &ctrl);
+								convert_to_output(aout, ctrl);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
 								int dummy_multi;

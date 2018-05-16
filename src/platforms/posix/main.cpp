@@ -366,7 +366,7 @@ static void *comm_recv(void *arg)
 				mystr = (const char*) _buffer;
 
 				cout << mystr << endl;
-				process_line(mystr, false);
+				//process_line(mystr, false);
 				mystr = "";
 
 				print_prompt();
