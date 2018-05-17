@@ -221,9 +221,33 @@ static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t 
 void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 {
 
-	PX4_INFO("x: %8.4f\n", (double)imu->xacc);
-	PX4_INFO("y: %8.4f\n", (double)imu->yacc);
-	PX4_INFO("z: %8.4f\n", (double)imu->zacc);
+	// PX4_INFO("x: %8.4f\n", (double)imu->xacc);
+	// PX4_INFO("y: %8.4f\n", (double)imu->yacc);
+	// PX4_INFO("z: %8.4f\n", (double)imu->zacc);
+
+	if (imu->temperature > -273.0)
+	{
+		RawBaroData baro = {};
+		// calculate air pressure from altitude (valid for low altitude)
+		baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
+		baro.altitude = imu->pressure_alt;
+		baro.temperature = imu->temperature;
+
+		write_baro_data(&baro);
+
+		RawAirspeedData airspeed = {};
+		airspeed.temperature = imu->temperature;
+		airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
+
+		write_airspeed_data(&airspeed);
+
+		// this is a baro only message from host px4
+		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
+			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
+			return;
+		}
+	}
+
 	// write sensor data to memory so that drivers can copy data from there
 	RawMPUData mpu = {};
 	mpu.accel_x = imu->xacc;
@@ -253,19 +277,7 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	write_mag_data(&mag);
 	perf_begin(_perf_mag);
 
-	RawBaroData baro = {};
-	// calculate air pressure from altitude (valid for low altitude)
-	baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
-	baro.altitude = imu->pressure_alt;
-	baro.temperature = imu->temperature;
-
-	write_baro_data(&baro);
-
-	RawAirspeedData airspeed = {};
-	airspeed.temperature = imu->temperature;
-	airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
-
-	write_airspeed_data(&airspeed);
+	
 }
 
 void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
@@ -1058,6 +1070,26 @@ int Simulator::publish_sensor_topics(mavlink_hil_sensor_t *imu)
 	}
 	last_timestamp = timestamp;
 	*/
+
+	// from host px4, only update baro information
+	if (imu->temperature > -273.0)
+	{
+		struct baro_report baro = {};
+
+		baro.timestamp = timestamp;
+		baro.pressure = imu->abs_pressure;
+		baro.altitude = imu->pressure_alt;
+		baro.temperature = imu->temperature;
+
+		int baro_multi;
+		orb_publish_auto(ORB_ID(sensor_baro), &_baro_pub, &baro, &baro_multi, ORB_PRIO_HIGH);
+
+		// this is a baro only message from host px4
+		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000)
+			return OK;
+	}
+
+
 	/* gyro */
 	{
 		struct gyro_report gyro = {};
@@ -1110,19 +1142,6 @@ int Simulator::publish_sensor_topics(mavlink_hil_sensor_t *imu)
 
 		int mag_multi;
 		orb_publish_auto(ORB_ID(sensor_mag), &_mag_pub, &mag, &mag_multi, ORB_PRIO_HIGH);
-	}
-
-	/* baro */
-	{
-		struct baro_report baro = {};
-
-		baro.timestamp = timestamp;
-		baro.pressure = imu->abs_pressure;
-		baro.altitude = imu->pressure_alt;
-		baro.temperature = imu->temperature;
-
-		int baro_multi;
-		orb_publish_auto(ORB_ID(sensor_baro), &_baro_pub, &baro, &baro_multi, ORB_PRIO_HIGH);
 	}
 
 	return OK;
