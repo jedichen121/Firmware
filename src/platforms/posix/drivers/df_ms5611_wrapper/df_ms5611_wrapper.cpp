@@ -234,9 +234,9 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 		_hil_sensor.xgyro = 0;
 		_hil_sensor.ygyro = 0;
 		_hil_sensor.zgyro = 0;
-		_hil_sensor.xmag = 0;
-		_hil_sensor.ymag = 0;
-		_hil_sensor.zmag = 0;
+		_hil_sensor.xmag = 1001;	// 1001 is very large for a magnatic field
+		_hil_sensor.ymag = 1001;
+		_hil_sensor.zmag = 1001;
 
 		_hil_sensor.abs_pressure = baro_report.pressure;
 		_hil_sensor.diff_pressure = baro_report.pressure;
