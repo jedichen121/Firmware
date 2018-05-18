@@ -275,7 +275,8 @@ BAROSIM::collect()
 		if (_baro_topic != nullptr) {
 			/* publish it */
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &report);
-
+//			PX4_INFO("baro data in driver: %f", (double) report.pressure);
+//			PX4_INFO("baro data in driver: %f", (double) report.temperature);
 		} else {
 			PX4_WARN("BAROSIM::collect _baro_topic not initialized");
 		}

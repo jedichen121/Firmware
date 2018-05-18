@@ -1,4 +1,3 @@
-
 /****************************************************************************
  *
  *   Copyright (c) 2015 Mark Charlebois. All rights reserved.
@@ -221,10 +220,10 @@ static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t 
 
 void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 {
-//	PX4_INFO("baro: %8.4f", (double) imu->pressure_alt);
-//	PX4_INFO("x: %8.4f", (double)imu->xmag);
-//	PX4_INFO("y: %8.4f", (double)imu->ymag);
-//	PX4_INFO("z: %8.4f", (double)imu->zmag);
+
+	// PX4_INFO("x: %8.4f\n", (double)imu->xacc);
+	// PX4_INFO("y: %8.4f\n", (double)imu->yacc);
+	// PX4_INFO("z: %8.4f\n", (double)imu->zacc);
 
 	if ((double) imu->temperature > -273.0)
 	{
@@ -244,7 +243,7 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 
 		// this is a baro only message from host px4
 		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
-//			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
+			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
 			return;
 		}
 	}
@@ -1071,7 +1070,7 @@ int Simulator::publish_sensor_topics(mavlink_hil_sensor_t *imu)
 	}
 	last_timestamp = timestamp;
 	*/
-	PX4_INFO("temp: %f", (double) imu->temperature);
+
 	// from host px4, only update baro information
 	if ((double) imu->temperature > -273.0)
 	{
@@ -1084,7 +1083,7 @@ int Simulator::publish_sensor_topics(mavlink_hil_sensor_t *imu)
 
 		int baro_multi;
 		orb_publish_auto(ORB_ID(sensor_baro), &_baro_pub, &baro, &baro_multi, ORB_PRIO_HIGH);
-		PX4_INFO("baro published");
+
 		// this is a baro only message from host px4
 		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000)
 			return OK;
