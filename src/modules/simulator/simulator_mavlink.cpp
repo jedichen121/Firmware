@@ -186,7 +186,7 @@ void Simulator::send_controls()
 		
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
-		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
+//		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
 }
@@ -243,7 +243,7 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 
 		// this is a baro only message from host px4
 		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
-			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
+//			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
 			return;
 		}
 	}
@@ -448,10 +448,10 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 		fill_rc_input_msg(&_rc_input, &rc_channels);
 
 		// publish message
-		if (publish) {
+//		if (publish) {
 			int rc_multi;
 			orb_publish_auto(ORB_ID(input_rc), &_rc_channels_pub, &_rc_input, &rc_multi, ORB_PRIO_HIGH);
-		}
+//		}
 
 		break;
 

@@ -259,7 +259,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 		struct rc_input_values rc_input;
 
 		orb_copy(ORB_ID(input_rc), _rc_sub, &rc_input);
-		PX4_INFO("%f %f %f %f", (double) rc_input.values[0], (double) rc_input.values[1], (double) rc_input.values[2], (double) rc_input.values[3]);
+//		PX4_INFO("%f %f %f %f", (double) rc_input.values[0], (double) rc_input.values[1], (double) rc_input.values[2], (double) rc_input.values[3]);
 
 		/* detect RC signal loss */
 		bool signal_lost;

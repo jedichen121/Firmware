@@ -368,6 +368,7 @@ PWMSim::subscribe()
 void
 PWMSim::task_main()
 {
+//	PX4_INFO("HELLO pwm out sim");
 	/* force a reset of the update rate */
 	_current_update_rate = 0;
 
@@ -382,7 +383,6 @@ PWMSim::task_main()
 
 	/* loop until killed */
 	while (!_task_should_exit) {
-
 		if (_groups_subscribed != _groups_required) {
 			subscribe();
 			_groups_subscribed = _groups_required;
@@ -460,7 +460,8 @@ PWMSim::task_main()
 				break;
 
 			case MODE_8PWM:
-				num_outputs = 8;
+				num_outputs = 4;
+//				PX4_INFO("~~~num_output %d", num_outputs);
 				break;
 
 			case MODE_16PWM:
@@ -471,11 +472,14 @@ PWMSim::task_main()
 				num_outputs = 0;
 				break;
 			}
-
+			//set the same with host rover @zivy
+//			PX4_INFO("num_output %d", num_outputs);
 			/* do mixing */
 			num_outputs = _mixers->mix(&outputs.output[0], num_outputs);
+//			PX4_INFO("num_output %d", num_outputs);
 			outputs.noutputs = num_outputs;
 			outputs.timestamp = hrt_absolute_time();
+
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = 0; i < sizeof(outputs.output) / sizeof(outputs.output[0]); i++) {
@@ -483,6 +487,7 @@ PWMSim::task_main()
 					outputs.output[i] = NAN;
 				}
 			}
+			PX4_INFO("after %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 			/* iterate actuators */
 			for (unsigned i = 0; i < num_outputs; i++) {
@@ -520,6 +525,8 @@ PWMSim::task_main()
 
 			/* and publish for anyone that cares to see */
 			orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &outputs);
+//			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
+
 		}
 
 		/* how about an arming update? */
