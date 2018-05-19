@@ -211,7 +211,7 @@ private:
 	 * Publish the gps struct
 	 */
 	void 				publish();
-	void send_mavlink_message(const mavlink_message_t *msg);
+	void send_mavlink_message(const mavlink_message_t *message, const int destination_port);
 
 //	constexpr static const uint8_t mavlink_message_lengths[256] = MAVLINK_MESSAGE_LENGTHS;
 //	constexpr static const uint8_t  mavlink_message_crcs[256] = MAVLINK_MESSAGE_CRCS;
@@ -653,7 +653,11 @@ GPS::run()
 	memset((char *) &_send_addr, 0, sizeof(_send_addr));
 	_send_addr.sin_family = AF_INET;
 	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_send_addr.sin_port = htons(14660);
+
+
+//	if (destination_port != 0) {
+		_send_addr.sin_port = htons(14660);
+//	}
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed");
@@ -957,16 +961,20 @@ GPS::publish()
 		//send GPS to container, mavlink copy from gazebo @Zivy
 		mavlink_message_t msg;
 		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
-		send_mavlink_message(&msg);
-//		PX4_INFO("Sent MAVLink message tpye is %i.", msg.msgid);
+		send_mavlink_message(&msg,14660);
+		PX4_INFO("gps: %f %f", (double) _hil_gps_msg.lat, (double) _hil_gps_msg.lon);
 
 	}
 }
 //@Zivy
-void GPS::send_mavlink_message(const mavlink_message_t *msg) {
+void GPS::send_mavlink_message(const mavlink_message_t *message, const int destination_port) {
+
+	// try to setup udp socket for communcation with simulator
+
+	
 
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
+	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
 
 //	PX4_INFO("SENDING GPS MESSAGES");
 
@@ -974,6 +982,8 @@ void GPS::send_mavlink_message(const mavlink_message_t *msg) {
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
 	}
+
+
 }
 
 
