@@ -346,7 +346,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 				_rc.channels[i] = 0.0f;
 			}
 		}
-//		PX4_INFO("%f %f %f %f", (double) rc_input.values[0], (double) rc_input.values[1], (double) rc_input.values[2], (double) rc_input.values[3]);
+//		PX4_INFO("channel: %f %f %f %f", (double) _rc.channels[0], (double) _rc.channels[1], (double) _rc.channels[2], (double) _rc.channels[3]);
 
 		_rc.channel_count = rc_input.channel_count;
 		_rc.rssi = rc_input.rssi;
@@ -386,7 +386,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 			manual.x = math::constrain(_filter_pitch.apply(manual.x), -1.f, 1.f);
 			manual.r = math::constrain(_filter_yaw.apply(manual.r), -1.f, 1.f);
 			manual.z = math::constrain(_filter_throttle.apply(manual.z), 0.f, 1.f);
-
+//			PX4_INFO("manual: %f %f %f %f", (double) manual.y, (double) manual.x, (double) manual.r, (double) manual.z);
 			if (_parameters.rc_map_flightmode > 0) {
 
 				/* the number of valid slots equals the index of the max marker minus one */
@@ -442,7 +442,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 					     _parameters.rc_stab_th, _parameters.rc_stab_inv);
 			manual.man_switch = get_rc_sw2pos_position(rc_channels_s::RC_CHANNELS_FUNCTION_MAN,
 					    _parameters.rc_man_th, _parameters.rc_man_inv);
-
+//			PX4_INFO("manual after: %f %f %f %f", (double) manual.y, (double) manual.x, (double) manual.r, (double) manual.z);
 			/* publish manual_control_setpoint topic */
 			orb_publish_auto(ORB_ID(manual_control_setpoint), &_manual_control_pub, &manual, &instance,
 					 ORB_PRIO_HIGH);
