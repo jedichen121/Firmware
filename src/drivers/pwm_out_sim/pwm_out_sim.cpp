@@ -460,7 +460,7 @@ PWMSim::task_main()
 				break;
 
 			case MODE_8PWM:
-				num_outputs = 4;
+				num_outputs = 8;
 //				PX4_INFO("~~~num_output %d", num_outputs);
 				break;
 
@@ -487,7 +487,7 @@ PWMSim::task_main()
 					outputs.output[i] = NAN;
 				}
 			}
-			PX4_INFO("after %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
+			PX4_INFO("after mix %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 			/* iterate actuators */
 			for (unsigned i = 0; i < num_outputs; i++) {
@@ -888,7 +888,7 @@ hil_new_mode(PortMode new_mode)
 
 	case PORT1_FULL_PWM:
 		/* select 4-pin PWM mode */
-		servo_mode = PWMSim::MODE_8PWM;
+		servo_mode = PWMSim::MODE_4PWM;
 		break;
 
 	case PORT2_8PWM:
