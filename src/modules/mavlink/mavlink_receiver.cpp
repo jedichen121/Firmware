@@ -92,9 +92,11 @@
 #include "mavlink_command_sender.h"
 
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
-static sockaddr_in _con_send_addr;
+static sockaddr_in _send_addr;
 static int _fd;
-static socklen_t _addrlen = sizeof(_con_send_addr);
+static socklen_t _addrlen = sizeof(_send_addr);
+#define SEND_PORT 	14660
+
 
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
@@ -1703,18 +1705,18 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 		// try to setup udp socket for communcation with simulator
 
 		
-		//static unsigned char _buf[1024];
-		static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
-		// convery mavlink message to raw data
-		uint16_t bufLen = 0;
-		bufLen = mavlink_msg_to_send_buffer(buf, msg);
+		// //static unsigned char _buf[1024];
+		// static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
+		// // convery mavlink message to raw data
+		// uint16_t bufLen = 0;
+		// bufLen = mavlink_msg_to_send_buffer(buf, msg);
 
-		// send data
-		ssize_t send_len = sendto(_fd, buf, bufLen, 0,
-				(struct sockaddr *) &_con_send_addr, _addrlen);
-		if (send_len <= 0) {
-			PX4_WARN("*****Failed sending mavlink message*");
-		}
+		// // send data
+		// ssize_t send_len = sendto(_fd, buf, bufLen, 0,
+		// 		(struct sockaddr *) &_send_addr, _addrlen);
+		// if (send_len <= 0) {
+		// 	PX4_WARN("*****Failed sending mavlink message*");
+		// }
 		/* end */
 	}
 }
@@ -2082,8 +2084,31 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 
 	} else {
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
+
+		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
+
+		mavlink_message_t msg;
+		mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);
+		send_mavlink_hil_gps(&msg);
 	}
 }
+
+
+void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+
+}
+
+
 
 void MavlinkReceiver::handle_message_follow_target(mavlink_message_t *msg)
 {
@@ -2472,10 +2497,10 @@ MavlinkReceiver::receive_thread(void *arg)
 	_mission_manager.set_verbose(verbose);
 
 
-	memset((char *) &_con_send_addr, 0, sizeof(_con_send_addr));
-	_con_send_addr.sin_family = AF_INET;
-	_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_con_send_addr.sin_port = htons(14656);
+	memset((char *) &_send_addr, 0, sizeof(_send_addr));
+	_send_addr.sin_family = AF_INET;
+	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_send_addr.sin_port = htons(SEND_PORT);
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
