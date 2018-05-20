@@ -540,7 +540,7 @@ void poll_container()
 								// for (int j = 0; j < 16; j++)
 								// 	aout.output[j] = ctrl.controls[j];
 								convert_to_output(aout, ctrl);
-//								PX4_INFO("%f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
+								PX4_INFO("output: %f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
 								int dummy_multi;
