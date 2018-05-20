@@ -299,6 +299,8 @@ void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
 	gps.fix_type = gps_sim->fix_type;
 	gps.satellites_visible = gps_sim->satellites_visible;
 
+	PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
+
 	write_gps_data((void *)&gps);
 }
 
