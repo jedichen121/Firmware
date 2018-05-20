@@ -183,7 +183,8 @@ void Simulator::send_controls()
 		if (_actuator_outputs_sub[i] < 0 || _actuators[i].timestamp == 0) {
 			continue;
 		}
-		
+		PX4_INFO("output: %f %f %f %f", (double) _actuators[i].output[0], (double) _actuators[i].output[1], (double) _actuators[i].output[2], (double) _actuators[i].output[3]);
+
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
 //		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
