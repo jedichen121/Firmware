@@ -94,7 +94,7 @@
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 static sockaddr_in _send_addr;
 static int _fd;
-static socklen_t _addrlen = sizeof(_send_addr);
+//static socklen_t _addrlen = sizeof(_send_addr);
 #define SEND_PORT 	14660
 
 
@@ -2087,9 +2087,9 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 
 		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
 
-		mavlink_message_t msg;
-		mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);
-		send_mavlink_hil_gps(&msg);
+		mavlink_message_t hil_msg;
+		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &gps);
+		send_mavlink_hil_gps(&hil_msg);
 	}
 }
 
@@ -2099,7 +2099,9 @@ void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *msg) {
 	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
 
 //	PX4_INFO("SENDING GPS MESSAGES");
-
+	for (int i = 0; i < packetlen; i++)
+		printf("%f", buffer[i]);
+	printf("\n");
 	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
 
 	if (len <= 0) {
