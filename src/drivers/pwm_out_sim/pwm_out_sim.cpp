@@ -473,12 +473,12 @@ PWMSim::task_main()
 			}
 
 			/* do mixing */
-			PX4_INFO("mixing");
-			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
+			// PX4_INFO("mixing");
+			// PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
 			num_outputs = _mixers->mix(&outputs.output[0], num_outputs);
 			outputs.noutputs = num_outputs;
 			outputs.timestamp = hrt_absolute_time();
-			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
+			// PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
 			
 
 			/* disable unused ports by setting their output to NaN */
@@ -509,7 +509,7 @@ PWMSim::task_main()
 				}
 			}
 
-			PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
+			// PX4_INFO("%f %f %f %f", (double) outputs.output[0], (double) outputs.output[1], (double) outputs.output[2], (double) outputs.output[3]);
 			
 			/* overwrite outputs in case of force_failsafe */
 			if (_failsafe) {
