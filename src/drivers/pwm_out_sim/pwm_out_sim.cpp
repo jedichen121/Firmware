@@ -487,7 +487,7 @@ PWMSim::task_main()
 					outputs.output[i] = NAN;
 				}
 			}
-			PX4_INFO("after mix %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
+//			PX4_INFO("after mix %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 			/* iterate actuators */
 			for (unsigned i = 0; i < num_outputs; i++) {
