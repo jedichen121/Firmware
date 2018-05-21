@@ -2086,26 +2086,12 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
 
 //		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
-		_hil_gps_msg.time_usec = hil_gps.time_utc_usec;
-		_hil_gps_msg.fix_type = hil_gps.fix_type;
-		_hil_gps_msg.lat = hil_gps.lat;
-		_hil_gps_msg.lon = hil_gps.lon;
-		_hil_gps_msg.alt = hil_gps.alt;
-		_hil_gps_msg.eph = hil_gps.eph;
-		_hil_gps_msg.epv = hil_gps.epv;
-		_hil_gps_msg.vel = hil_gps.vel_m_s;
-		_hil_gps_msg.vn = hil_gps.vel_n_m_s;
-		_hil_gps_msg.ve = hil_gps.vel_e_m_s;
-		_hil_gps_msg.vd = hil_gps.vel_d_m_s;
-
-		PX4_INFO("hil gps: %f %f %f", (double) _hil_gps_msg.lat, (double) _hil_gps_msg.lon, (double) _hil_gps_msg.alt);
-
+		// mavlink_message_t hil_msg;
+		// mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &_hil_gps_msg);
 		mavlink_message_t hil_msg;
-		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &_hil_gps_msg);
-//		mavlink_message_t hil_msg;
-//		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &gps);
-//		send_mavlink_hil_gps(&hil_msg);
-//		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
+		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &gps);
+		send_mavlink_hil_gps(&hil_msg);
+		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
 	}
 }
 
@@ -2116,9 +2102,9 @@ void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *hil_msg) {
 
 //	PX4_INFO("SENDING GPS MESSAGES");
 //	for (int i = 0; i < packetlen; i++)
-	printf("%d ", (int32_t) buffer[8]);
-	printf("%d ", (int32_t) buffer[16]);
-	printf("\n");
+	// printf("%d ", (int32_t) buffer[8]);
+	// printf("%d ", (int32_t) buffer[16]);
+	// printf("\n");
 	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
 
 	if (len <= 0) {

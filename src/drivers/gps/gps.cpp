@@ -942,23 +942,27 @@ GPS::publish()
 		orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance, ORB_PRIO_DEFAULT);
 		_is_gps_main_advertised = true;
 
-		_hil_gps_msg.time_usec = _report_gps_pos.time_utc_usec;
-		_hil_gps_msg.fix_type = _report_gps_pos.fix_type;
-		_hil_gps_msg.lat = _report_gps_pos.lat;
-		_hil_gps_msg.lon = _report_gps_pos.lon;
-		_hil_gps_msg.alt = _report_gps_pos.alt;
-		_hil_gps_msg.eph = _report_gps_pos.eph;
-		_hil_gps_msg.epv = _report_gps_pos.epv;
-		_hil_gps_msg.vel = _report_gps_pos.vel_m_s;
-		_hil_gps_msg.vn = _report_gps_pos.vel_n_m_s;
-		_hil_gps_msg.ve = _report_gps_pos.vel_e_m_s;
-		_hil_gps_msg.vd = _report_gps_pos.vel_d_m_s;
-//		PX4_INFO("%f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)_hil_gps_msg.lat);
-		//send GPS to container, mavlink copy from gazebo @Zivy
-		mavlink_message_t msg;
-		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
-		send_mavlink_message(&msg);
-//		PX4_INFO("Sent MAVLink message tpye is %i.", msg.msgid);
+		// if gps not available then don't send to container
+		// -17000 is the value for alt when gps not available
+		if (_report_gps_pos.alt > -16999) {
+			_hil_gps_msg.time_usec = _report_gps_pos.time_utc_usec;
+			_hil_gps_msg.fix_type = _report_gps_pos.fix_type;
+			_hil_gps_msg.lat = _report_gps_pos.lat;
+			_hil_gps_msg.lon = _report_gps_pos.lon;
+			_hil_gps_msg.alt = _report_gps_pos.alt;
+			_hil_gps_msg.eph = _report_gps_pos.eph;
+			_hil_gps_msg.epv = _report_gps_pos.epv;
+			_hil_gps_msg.vel = _report_gps_pos.vel_m_s;
+			_hil_gps_msg.vn = _report_gps_pos.vel_n_m_s;
+			_hil_gps_msg.ve = _report_gps_pos.vel_e_m_s;
+			_hil_gps_msg.vd = _report_gps_pos.vel_d_m_s;
+	//		PX4_INFO("%f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)_hil_gps_msg.lat);
+			//send GPS to container, mavlink copy from gazebo @Zivy
+			mavlink_message_t msg;
+			mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
+			send_mavlink_message(&msg);
+	//		PX4_INFO("Sent MAVLink message tpye is %i.", msg.msgid);
+		}
 
 	}
 }
