@@ -247,7 +247,6 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 		mavlink_message_t msg;
 		mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_sensor);
 		send_mavlink_hil_baro(&msg);
-
 	}
 
 	perf_end(_baro_sample_perf);
