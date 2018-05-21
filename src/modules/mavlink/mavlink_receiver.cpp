@@ -91,8 +91,7 @@
 #include "mavlink_main.h"
 #include "mavlink_command_sender.h"
 
-#include "../mavlink/v1.0/common/mavlink.h"
-#include <netinet/in.h>
+#include "mavlink_send_hil_gps.h"
 
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 static sockaddr_in _send_addr;
@@ -2091,17 +2090,11 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 //		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
 		// mavlink_message_t hil_msg;
 		// mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &_hil_gps_msg);
-		mavlink_message_t hil_msg;
-		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &gps);
-		send_mavlink_hil_gps(&hil_msg);
+		
+		send_mavlink_hil_gps(&gps, &_fd, &_send_addr);
+
 		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
-		mavlink_gps_global_origin_t origin;
-		origin.time_usec =timestamp; 
-		origin.latitude = 0;
-		origin.longitude = 0;
-		origin.altitude = 0;
-		mavlink_msg_gps_global_origin_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &origin);
-		send_mavlink_hil_gps(&hil_msg);
+
 	}
 }
 
@@ -2110,19 +2103,7 @@ void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *hil_msg) {
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 	int packetlen = mavlink_msg_to_send_buffer(buffer, hil_msg);
 
-	int _fd2;
-	sockaddr_in _send_addr2;
-
-	memset((char *) &_send_addr2, 0, sizeof(_send_addr2));
-	_send_addr2.sin_family = AF_INET; 
-	_send_addr2.sin_addr.s_addr = htonl(INADDR_ANY);
-	_send_addr2.sin_port = htons(SEND_PORT);
-
-	if ((_fd2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		PX4_WARN("create socket failed\n");
-	}
-
-	ssize_t len = sendto(_fd2, buffer, packetlen, 0, (struct sockaddr *) &_send_addr2, sizeof(_send_addr2));
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
 	}
