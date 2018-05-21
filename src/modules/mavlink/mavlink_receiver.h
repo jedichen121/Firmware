@@ -156,7 +156,7 @@ private:
 	void handle_message_debug(mavlink_message_t *msg);
 	void handle_message_debug_vect(mavlink_message_t *msg);
 
-	void send_mavlink_hil_gps(const mavlink_message_t *hil_msg);
+//	void send_mavlink_hil_gps(const mavlink_message_t *hil_msg);
 
 	void *receive_thread(void *arg);
 
