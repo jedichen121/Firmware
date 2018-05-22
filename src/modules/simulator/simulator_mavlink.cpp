@@ -550,6 +550,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 
 		break;
+
 	}
 
 }
@@ -896,6 +897,30 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		// got data from simulator
 		if (fds[0].revents & POLLIN) {
 			len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
+			//handle GPS message
+			if(_buf[7]==113){
+				mavlink_hil_gps_t gps_sim;
+				//mavlink_msg_hil_gps_decode(msg, &gps_sim);
+				gps_sim.time_usec = _buf[0];
+				gps_sim.fix_type = _buf[34];
+				gps_sim.lat = _buf[8];
+				gps_sim.lon = _buf[12];
+				gps_sim.alt = _buf[16];
+				gps_sim.eph = _buf[20];
+				gps_sim.epv = _buf[22];
+				gps_sim.vel = _buf[24];
+				gps_sim.vn = _buf[26];
+				gps_sim.ve = _buf[28];
+				gps_sim.vd = _buf[30];
+
+			PX4_INFO("hil gps: %f %f %f", (double) gps_sim.lat, (double) gps_sim.lon, (double) gps_sim.alt);
+			if (publish) {
+				//PX4_WARN("FIXME:  Need to publish GPS topic.  Not done yet.");
+			}
+
+			update_gps(&gps_sim);
+
+		}
 
 			if (len > 0) {
 				mavlink_message_t msg;
@@ -903,6 +928,9 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 				for (int i = 0; i < len; i++) {
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
+
+						if (msg.msgid != MAVLINK_MSG_ID_HIL_SENSOR)
+							PX4_INFO("msgid is: %d", msg.msgid);
 						handle_message(&msg, publish);
 						
 					// /*zhiwei adds, send msg to another px4, udp port 14562*/
