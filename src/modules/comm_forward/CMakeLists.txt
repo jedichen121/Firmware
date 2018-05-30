@@ -35,12 +35,12 @@
 px4_add_module(
 	MODULE modules__comm_forward
 	MAIN comm_forward
+    STACK_MAIN 2000
 	COMPILE_FLAGS
 	SRCS
 		comm_forward.cpp
 	DEPENDS
 		platforms__common
-
 	)
 
 # vim: set noet ft=cmake fenc=utf-8 ff=unix : 

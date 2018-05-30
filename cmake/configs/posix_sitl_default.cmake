@@ -79,6 +79,8 @@ set(config_module_list
 	modules/replay
 	modules/simulator
 	#modules/uavcan
+	modules/comm_forward
+	modules/px4_simple_app2
 
 	#
 	# Estimation modules

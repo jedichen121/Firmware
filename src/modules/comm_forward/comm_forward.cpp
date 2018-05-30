@@ -39,6 +39,7 @@
 #include <px4_log.h>
 #include <px4_tasks.h>
 #include <px4_time.h>
+#include <px4_posix.h>
 #include <pthread.h>
 #include <poll.h>
 #include <systemlib/err.h>
@@ -47,203 +48,101 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <drivers/drv_board_led.h>
+#include <drivers/drv_hrt.h>
 
-#include "simulator.h"
+#include <uORB/uORB.h>
+#include <uORB/topics/vehicle_gps_position.h>
+#include <netinet/in.h>
+#include "../mavlink/v1.0/common/mavlink.h"
 
-using namespace simulator;
 
-static px4_task_t g_sim_task = -1;
+// __EXPORT int comm_forward_main(int argc, char *argv[]);
 
-Simulator *Simulator::_instance = nullptr;
+extern "C" { __EXPORT int comm_forward_main(int argc, char *argv[]); }
 
-Simulator *Simulator::getInstance()
+
+// class Comm_forward
+// {
+// 	Comm_forward();
+
+// 	virtual ~Comm_forward();
+
+
+// private:
+
+
+
+
+
+// }
+
+
+
+int comm_forward_main(int argc, char *argv[])
 {
-	return _instance;
-}
 
-bool Simulator::getMPUReport(uint8_t *buf, int len)
-{
-	return _mpu.copyData(buf, len);
-}
 
-bool Simulator::getRawAccelReport(uint8_t *buf, int len)
-{
-	return _accel.copyData(buf, len);
-}
+	struct vehicle_gps_position_s	_gps_pos;
 
-bool Simulator::getMagReport(uint8_t *buf, int len)
-{
-	return _mag.copyData(buf, len);
-}
+    PX4_INFO("Hello Sky!");
+    PX4_INFO("Hello command forward!");
 
-bool Simulator::getBaroSample(uint8_t *buf, int len)
-{
-	return _baro.copyData(buf, len);
-}
+    /* subscribe to sensor_combined topic */
+    int vehicle_pos_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
+    /* limit the update rate to 2 Hz */
+    orb_set_interval(vehicle_pos_fd, 500);
 
-bool Simulator::getGPSSample(uint8_t *buf, int len)
-{
-	return _gps.copyData(buf, len);
-}
 
-bool Simulator::getAirspeedSample(uint8_t *buf, int len)
-{
-	return _airspeed.copyData(buf, len);
-}
+ //    // /* advertise attitude topic */
+ //    // struct vehicle_attitude_s att;
+ //    // memset(&att, 0, sizeof(att));
+ //    // orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
 
-void Simulator::write_MPU_data(void *buf)
-{
-	_mpu.writeData(buf);
-}
 
-void Simulator::write_accel_data(void *buf)
-{
-	_accel.writeData(buf);
-}
+    /* copy all topics first time */
+    orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
 
-void Simulator::write_mag_data(void *buf)
-{
-	_mag.writeData(buf);
-}
+    /* one could wait for multiple topics with this technique, just using one here */
+    px4_pollfd_struct_t fds[1] = {};
+    fds[0].fd = vehicle_pos_fd;
+    fds[0].events = POLLIN;
 
-void Simulator::write_baro_data(void *buf)
-{
-	_baro.writeData(buf);
-}
+    while (1) {
+    	/* wait for up to 1000ms for data */
+		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
 
-void Simulator::write_gps_data(void *buf)
-{
-	_gps.writeData(buf);
-}
+		if (pret == 0) {
+			/* Let the loop run anyway, don't do `continue` here. */
 
-void Simulator::write_airspeed_data(void *buf)
-{
-	_airspeed.writeData(buf);
-}
-
-void Simulator::parameters_update(bool force)
-{
-	bool updated;
-	struct parameter_update_s param_upd;
-
-	orb_check(_param_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(parameter_update), _param_sub, &param_upd);
-	}
-
-	if (updated || force) {
-		// update C++ param system
-		updateParams();
-	}
-}
-
-int Simulator::start(int argc, char *argv[])
-{
-	int ret = 0;
-	int udp_port = 0;
-	_instance = new Simulator();
-
-	if (_instance) {
-		drv_led_start();
-
-		if (argc == 5 && strcmp(argv[3], "-u") == 0) {
-			udp_port = atoi(argv[4]);
-		}
-
-		if (argv[2][1] == 's') {
-			_instance->initializeSensorData();
-#ifndef __PX4_QURT
-			// Update sensor data
-			_instance->pollForMAVLinkMessages(false, udp_port);
-#endif
-
-		} else if (argv[2][1] == 'p') {
-			// Update sensor data
-			_instance->pollForMAVLinkMessages(true, udp_port);
+		} else if (pret < 0) {
+			// this is undesirable but not much we can do - might want to flag unhappy status 
+			PX4_ERR("poll error %d, %d", pret, errno);
+			usleep(10000);
+			continue;
 
 		} else {
-			_instance->initializeSensorData();
-			_instance->_initialized = true;
-		}
 
-	} else {
-		PX4_WARN("Simulator creation failed");
-		ret = 1;
+			orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
+
+			_gps_pos.timestamp = hrt_absolute_time();
+			// _gps_pos.lat = gps.lat;
+			// _gps_pos.lon = gps.lon;
+			// _gps_pos.alt = gps.alt;
+			// _gps_pos.eph = (float)gps.eph * 1e-2f;
+			// _gps_pos.epv = (float)gps.epv * 1e-2f;
+			// _gps_pos.vel_m_s = (float)(gps.vel) / 100.0f;
+			// _gps_pos.vel_n_m_s = (float)(gps.vn) / 100.0f;
+			// _gps_pos.vel_e_m_s = (float)(gps.ve) / 100.0f;
+			// _gps_pos.vel_d_m_s = (float)(gps.vd) / 100.0f;
+			// _gps_pos.cog_rad = (float)(gps.cog) * 3.1415f / (100.0f * 180.0f);
+			// _gps_pos.fix_type = gps.fix_type;
+			// _gps_pos.satellites_used = gps.satellites_visible;
+
+			// timestamp_last = gps.timestamp;
+			PX4_INFO("lat is: %f", (double) _gps_pos.lat);
+
+		}
 	}
 
-	return ret;
-}
-
-static void usage()
-{
-	PX4_WARN("Usage: simulator {start -[spt] [-u udp_port] |stop}");
-	PX4_WARN("Simulate raw sensors:     simulator start -s");
-	PX4_WARN("Publish sensors combined: simulator start -p");
-	PX4_WARN("Dummy unit test data:     simulator start -t");
-}
-
-__BEGIN_DECLS
-extern int simulator_main(int argc, char *argv[]);
-__END_DECLS
-
-extern "C" {
-
-	int simulator_main(int argc, char *argv[])
-	{
-		int ret = 0;
-
-		if (argc > 2 && strcmp(argv[1], "start") == 0) {
-			if (strcmp(argv[2], "-s") == 0 ||
-			    strcmp(argv[2], "-p") == 0 ||
-			    strcmp(argv[2], "-t") == 0) {
-
-				if (g_sim_task >= 0) {
-					warnx("Simulator already started");
-					return 0;
-				}
-
-				// enable lockstep support
-				px4_enable_sim_lockstep();
-
-				g_sim_task = px4_task_spawn_cmd("simulator",
-								SCHED_DEFAULT,
-								SCHED_PRIORITY_MAX,
-								1500,
-								Simulator::start,
-								argv);
-
-				// now wait for the command to complete
-				while (!px4_exit_requested()) {
-					if (Simulator::getInstance() && Simulator::getInstance()->isInitialized()) {
-						break;
-
-					} else {
-						usleep(100000);
-					}
-				}
-
-			} else {
-				usage();
-				ret = -EINVAL;
-			}
-
-		} else if (argc == 2 && strcmp(argv[1], "stop") == 0) {
-			if (g_sim_task < 0) {
-				PX4_WARN("Simulator not running");
-
-			} else {
-				px4_task_delete(g_sim_task);
-				g_sim_task = -1;
-			}
-
-		} else {
-			usage();
-			ret = -EINVAL;
-		}
-
-		return ret;
-	}
-
+    return OK;
 }
