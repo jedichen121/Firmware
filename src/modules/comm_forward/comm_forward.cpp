@@ -55,50 +55,91 @@
 #include <netinet/in.h>
 #include "../mavlink/v1.0/common/mavlink.h"
 
+#include "comm_forward.h"
+
 
 // __EXPORT int comm_forward_main(int argc, char *argv[]);
 
 extern "C" { __EXPORT int comm_forward_main(int argc, char *argv[]); }
 
+using namespace std;
 
-// class Comm_forward
-// {
-// 	Comm_forward();
-
-// 	virtual ~Comm_forward();
-
-
-// private:
-
-
-
-
-
-// }
-
-
-
-int comm_forward_main(int argc, char *argv[])
+namespace px4
 {
 
+Comm_forward::Comm_forward()
+{
 
-	struct vehicle_gps_position_s	_gps_pos;
+}
 
-    PX4_INFO("Hello Sky!");
-    PX4_INFO("Hello command forward!");
+Comm_forward::~Comm_forward()
+{
+	// _task_should_exit = true;
 
-    /* subscribe to sensor_combined topic */
+
+}
+
+
+
+
+int Comm_forward::task_spawn(int argc, char *argv[])
+{
+	
+
+	_task_id = px4_task_spawn_cmd("comm_forward",
+				      SCHED_DEFAULT,
+				      SCHED_PRIORITY_MAX - 5,
+				      4000,
+				      (px4_main_t)&run_trampoline,
+				      (char *const *)argv);
+
+	if (_task_id < 0) {
+		_task_id = -1;
+		return -errno;
+	}
+
+	return 0;
+}
+
+Comm_forward *Comm_forward::instantiate(int argc, char *argv[])
+{
+	
+	Comm_forward *instance = nullptr;
+
+	instance = new Comm_forward();
+
+	return instance;
+}
+
+int Comm_forward::custom_command(int argc, char *argv[])
+{
+
+	return print_usage("unknown command");
+}
+
+
+
+int Comm_forward::print_usage(const char *reason)
+{
+	if (reason) {
+		PX4_WARN("%s\n", reason);
+	}
+	return 0;
+}
+
+void Comm_forward::run()
+{
+	PX4_INFO("Hello command forward running!");
+
+
+	/* subscribe to sensor_combined topic */
     int vehicle_pos_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
     /* limit the update rate to 2 Hz */
     orb_set_interval(vehicle_pos_fd, 500);
 
 
- //    // /* advertise attitude topic */
- //    // struct vehicle_attitude_s att;
- //    // memset(&att, 0, sizeof(att));
- //    // orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
-
-
+    struct vehicle_gps_position_s	_gps_pos;
+    
     /* copy all topics first time */
     orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
 
@@ -107,12 +148,12 @@ int comm_forward_main(int argc, char *argv[])
     fds[0].fd = vehicle_pos_fd;
     fds[0].events = POLLIN;
 
-    while (1) {
+    while (!should_exit()) {
     	/* wait for up to 1000ms for data */
 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
 
 		if (pret == 0) {
-			/* Let the loop run anyway, don't do `continue` here. */
+		// Let the loop run anyway, don't do `continue` here. 
 
 		} else if (pret < 0) {
 			// this is undesirable but not much we can do - might want to flag unhappy status 
@@ -144,5 +185,92 @@ int comm_forward_main(int argc, char *argv[])
 		}
 	}
 
-    return OK;
+
+
+
 }
+
+} //namespace px4
+
+using namespace px4;
+
+
+
+int comm_forward_main(int argc, char *argv[])
+{
+	//check for logfile env variable
+	PX4_INFO("Hello Sky!");
+    PX4_INFO("Hello command forward!");
+
+	return Comm_forward::main(argc, argv);
+}
+
+// int comm_forward_main(int argc, char *argv[])
+// {
+
+
+// 	struct vehicle_gps_position_s	_gps_pos;
+
+//     PX4_INFO("Hello Sky!");
+//     PX4_INFO("Hello command forward!");
+
+//     /* subscribe to sensor_combined topic */
+//     int vehicle_pos_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
+//     /* limit the update rate to 2 Hz */
+//     orb_set_interval(vehicle_pos_fd, 500);
+
+
+//  //    // /* advertise attitude topic */
+//  //    // struct vehicle_attitude_s att;
+//  //    // memset(&att, 0, sizeof(att));
+//  //    // orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
+
+
+//     /* copy all topics first time */
+//     orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
+
+//     /* one could wait for multiple topics with this technique, just using one here */
+//     px4_pollfd_struct_t fds[1] = {};
+//     fds[0].fd = vehicle_pos_fd;
+//     fds[0].events = POLLIN;
+
+//     while (1) {
+//     	/* wait for up to 1000ms for data */
+// 		int pret = px4_poll(&fds[0], (sizeof(fds) / sizeof(fds[0])), 1000);
+
+// 		if (pret == 0) {
+// 			 Let the loop run anyway, don't do `continue` here. 
+
+// 		} else if (pret < 0) {
+// 			// this is undesirable but not much we can do - might want to flag unhappy status 
+// 			PX4_ERR("poll error %d, %d", pret, errno);
+// 			usleep(10000);
+// 			continue;
+
+// 		} else {
+
+// 			orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
+
+// 			_gps_pos.timestamp = hrt_absolute_time();
+// 			// _gps_pos.lat = gps.lat;
+// 			// _gps_pos.lon = gps.lon;
+// 			// _gps_pos.alt = gps.alt;
+// 			// _gps_pos.eph = (float)gps.eph * 1e-2f;
+// 			// _gps_pos.epv = (float)gps.epv * 1e-2f;
+// 			// _gps_pos.vel_m_s = (float)(gps.vel) / 100.0f;
+// 			// _gps_pos.vel_n_m_s = (float)(gps.vn) / 100.0f;
+// 			// _gps_pos.vel_e_m_s = (float)(gps.ve) / 100.0f;
+// 			// _gps_pos.vel_d_m_s = (float)(gps.vd) / 100.0f;
+// 			// _gps_pos.cog_rad = (float)(gps.cog) * 3.1415f / (100.0f * 180.0f);
+// 			// _gps_pos.fix_type = gps.fix_type;
+// 			// _gps_pos.satellites_used = gps.satellites_visible;
+
+// 			// timestamp_last = gps.timestamp;
+// 			PX4_INFO("lat is: %f", (double) _gps_pos.lat);
+
+// 		}
+// 	}
+
+//     return OK;
+// }
+

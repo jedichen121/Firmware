@@ -80,7 +80,7 @@ set(config_module_list
 	modules/simulator
 	#modules/uavcan
 	modules/comm_forward
-	modules/px4_simple_app2
+	#modules/px4_simple_app2
 
 	#
 	# Estimation modules
