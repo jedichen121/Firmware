@@ -83,6 +83,12 @@ private:
 
 	void stop_log_mavlink() {}
 
+	void send_mavlink_hil_gps(const mavlink_message_t *msg);
+
+
+	static sockaddr_in _send_addr;
+	static int _fd;
+
 
 };
 

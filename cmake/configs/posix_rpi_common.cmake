@@ -78,6 +78,11 @@ set(config_module_list
 	modules/mavlink
 
 	#
+	# Container use
+	#
+	modules/comm_forward
+
+	#
 	# PX4 drivers
 	#
 	drivers/linux_sbus

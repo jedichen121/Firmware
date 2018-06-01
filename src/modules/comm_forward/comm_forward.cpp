@@ -138,15 +138,27 @@ void Comm_forward::run()
     orb_set_interval(vehicle_pos_fd, 500);
 
 
-    struct vehicle_gps_position_s	_gps_pos;
+    struct vehicle_gps_position_s	_vehicle_gps;
+    mavlink_hil_gps_t gps;
     
     /* copy all topics first time */
-    orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
+    orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_vehicle_gps);
 
     /* one could wait for multiple topics with this technique, just using one here */
     px4_pollfd_struct_t fds[1] = {};
     fds[0].fd = vehicle_pos_fd;
     fds[0].events = POLLIN;
+
+    memset((char *) &_send_addr, 0, sizeof(_send_addr));
+	_send_addr.sin_family = AF_INET;
+	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_send_addr.sin_port = htons(SEND_PORT);
+
+	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		PX4_WARN("create socket failed\n");
+		return nullptr;
+	}
+	
 
     while (!should_exit()) {
     	/* wait for up to 1000ms for data */
@@ -163,32 +175,48 @@ void Comm_forward::run()
 
 		} else {
 
-			orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_gps_pos);
+			orb_copy(ORB_ID(vehicle_gps_position), vehicle_pos_fd, &_vehicle_gps);
 
-			_gps_pos.timestamp = hrt_absolute_time();
-			// _gps_pos.lat = gps.lat;
-			// _gps_pos.lon = gps.lon;
-			// _gps_pos.alt = gps.alt;
-			// _gps_pos.eph = (float)gps.eph * 1e-2f;
-			// _gps_pos.epv = (float)gps.epv * 1e-2f;
-			// _gps_pos.vel_m_s = (float)(gps.vel) / 100.0f;
-			// _gps_pos.vel_n_m_s = (float)(gps.vn) / 100.0f;
-			// _gps_pos.vel_e_m_s = (float)(gps.ve) / 100.0f;
-			// _gps_pos.vel_d_m_s = (float)(gps.vd) / 100.0f;
-			// _gps_pos.cog_rad = (float)(gps.cog) * 3.1415f / (100.0f * 180.0f);
-			// _gps_pos.fix_type = gps.fix_type;
-			// _gps_pos.satellites_used = gps.satellites_visible;
+			gps.time_usec = _vehicle_gps.time_utc_usec;
 
-			// timestamp_last = gps.timestamp;
-			PX4_INFO("lat is: %f", (double) _gps_pos.lat);
+			gps.lat = _vehicle_gps.lat;
+			gps.lon = _vehicle_gps.lon;
+			gps.alt = _vehicle_gps.alt;
+			gps.eph = (float)_vehicle_gps.eph / 1e-2f; // from m to cm
+			gps.epv = (float)_vehicle_gps.epv / 1e-2f; // from m to cm
+
+
+			gps.vel = (float)_vehicle_gps.vel_m_s / 1e-2f; // from m/s to cm/s
+			gps.vn = _vehicle_gps.vel_n_m_s / 1e-2f; // from m to cm
+			gps.ve = _vehicle_gps.vel_e_m_s / 1e-2f; // from m to cm
+			gps.vd = _vehicle_gps.vel_d_m_s / 1e-2f; // from m to cm
+			gps.cog = (float)(_vehicle_gps.cog_rad) / 3.1415f * (100.0f * 180.0f);
+
+			gps.fix_type = _vehicle_gps.fix_type;
+			gps.satellites_used = _vehicle_gps.satellites_visible;  //TODO: rename mavlink_hil_gps_t sats visible to used?
+
+			PX4_INFO("lat is: %f", (double) gps.lat);
 
 		}
 	}
+}
 
 
+void Comm_forward::send_mavlink_hil_gps(const mavlink_message_t *msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
 
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
 
 }
+
+
 
 } //namespace px4
 
