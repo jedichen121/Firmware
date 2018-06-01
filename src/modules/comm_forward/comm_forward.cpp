@@ -56,6 +56,7 @@
 #include "../mavlink/v1.0/common/mavlink.h"
 
 #include "comm_forward.h"
+#define SEND_PORT 	14660
 
 
 // __EXPORT int comm_forward_main(int argc, char *argv[]);
@@ -156,7 +157,7 @@ void Comm_forward::run()
 
 	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		PX4_WARN("create socket failed\n");
-		return nullptr;
+		return;
 	}
 	
 
@@ -193,7 +194,7 @@ void Comm_forward::run()
 			gps.cog = (float)(_vehicle_gps.cog_rad) / 3.1415f * (100.0f * 180.0f);
 
 			gps.fix_type = _vehicle_gps.fix_type;
-			gps.satellites_used = _vehicle_gps.satellites_visible;  //TODO: rename mavlink_hil_gps_t sats visible to used?
+			gps.satellites_visible = _vehicle_gps.satellites_used;
 
 			PX4_INFO("lat is: %f", (double) gps.lat);
 
