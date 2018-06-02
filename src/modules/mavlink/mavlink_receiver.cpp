@@ -2086,15 +2086,6 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 
 	} else {
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
-
-//		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
-		// mavlink_message_t hil_msg;
-		// mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &_hil_gps_msg);
-		
-		send_mavlink_hil_gps(&gps, &_fd, &_send_addr);
-
-		PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
-
 	}
 }
 
