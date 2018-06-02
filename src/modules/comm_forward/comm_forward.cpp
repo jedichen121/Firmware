@@ -69,6 +69,8 @@ namespace px4
 {
 
 Comm_forward::Comm_forward()
+	// _send_addr(0),
+	// _fd(0)
 {
 
 }
@@ -198,6 +200,10 @@ void Comm_forward::run()
 
 			PX4_INFO("lat is: %f", (double) gps.lat);
 
+			mavlink_message_t msg;
+			mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);
+			send_mavlink_hil_gps(&msg);
+
 		}
 	}
 }
@@ -233,6 +239,8 @@ int comm_forward_main(int argc, char *argv[])
 
 	return Comm_forward::main(argc, argv);
 }
+
+
 
 // int comm_forward_main(int argc, char *argv[])
 // {

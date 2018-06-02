@@ -77,7 +77,7 @@ public:
 	// int print_status() override;
 
 
-private:
+protected:
 
 	void start_log_mavlink() {}
 
@@ -86,8 +86,8 @@ private:
 	void send_mavlink_hil_gps(const mavlink_message_t *msg);
 
 
-	static sockaddr_in _send_addr;
-	static int _fd;
+	sockaddr_in _send_addr;
+	int _fd;
 
 
 };
