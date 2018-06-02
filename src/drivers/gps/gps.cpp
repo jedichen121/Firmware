@@ -962,7 +962,7 @@ GPS::publish()
 	// 		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
 	// 		send_mavlink_message(&msg);
 	//		PX4_INFO("Sent MAVLink message tpye is %i.", msg.msgid);
-		}
+	//	}
 
 	}
 }
