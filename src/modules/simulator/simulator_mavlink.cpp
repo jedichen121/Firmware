@@ -438,7 +438,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 	case MAVLINK_MSG_ID_HIL_GPS:
 		mavlink_hil_gps_t gps_sim;
 		mavlink_msg_hil_gps_decode(msg, &gps_sim);
-		PX4_INFO("hil gps: %f %f %f", (double) gps_sim.lat, (double) gps_sim.lon, (double) gps_sim.alt);
+//		PX4_INFO("hil gps: %f %f %f", (double) gps_sim.lat, (double) gps_sim.lon, (double) gps_sim.alt);
 		if (publish) {
 			//PX4_WARN("FIXME:  Need to publish GPS topic.  Not done yet.");
 		}

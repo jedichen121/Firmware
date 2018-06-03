@@ -2017,6 +2017,7 @@ MavlinkReceiver::handle_message_hil_sensor(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 {
+	PX4_INFO("receiv hil gps data");
 	mavlink_hil_gps_t gps;
 	mavlink_msg_hil_gps_decode(msg, &gps);
 
