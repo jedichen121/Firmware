@@ -400,10 +400,10 @@ void task_main(int argc, char *argv[])
 					pwm[i] = pwm_value;
 				}
 
-				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+//				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 
 			} else {
-				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+//				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 			}
 
 			if (_outputs_pub != nullptr) {
