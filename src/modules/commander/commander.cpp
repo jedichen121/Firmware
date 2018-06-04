@@ -1232,18 +1232,18 @@ static void commander_set_home_position(orb_advert_t &homePub, home_position_s &
 					const vehicle_local_position_s &localPosition, const vehicle_global_position_s &globalPosition,
 					const vehicle_attitude_s &attitude)
 {
-	PX4_INFO("status_flags.condition_global_position_valid: %d", status_flags.condition_global_position_valid);
-	PX4_INFO("status_flags.condition_local_position_valid: %d", status_flags.condition_local_position_valid);
+	// PX4_INFO("status_flags.condition_global_position_valid: %d", status_flags.condition_global_position_valid);
+	// PX4_INFO("status_flags.condition_local_position_valid: %d", status_flags.condition_local_position_valid);
 	//Need global and local position fix to be able to set home
 	if (!status_flags.condition_global_position_valid || !status_flags.condition_local_position_valid) {
 		return;
 	}
-	PX4_INFO("accuracy not good");
+
 	//Ensure that the GPS accuracy is good enough for intializing home
 	if (globalPosition.eph > eph_threshold || globalPosition.epv > epv_threshold) {
 		return;
 	}
-	PX4_INFO("should be printing");
+
 	//Set home position
 	home.timestamp = hrt_absolute_time();
 	home.lat = globalPosition.lat;
