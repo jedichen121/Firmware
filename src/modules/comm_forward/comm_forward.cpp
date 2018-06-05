@@ -172,6 +172,24 @@ void Comm_forward::run()
 			// increase sending frequency
 			gps.time_usec = hrt_absolute_time();
 
+			gps.lat = _vehicle_gps.lat;
+			gps.lon = _vehicle_gps.lon;
+			gps.alt = _vehicle_gps.alt;
+			gps.eph = (float)_vehicle_gps.eph / 1e-2f; // from m to cm
+			gps.epv = (float)_vehicle_gps.epv / 1e-2f; // from m to cm
+
+
+			gps.vel = (float)_vehicle_gps.vel_m_s / 1e-2f; // from m/s to cm/s
+			gps.vn = _vehicle_gps.vel_n_m_s / 1e-2f; // from m to cm
+			gps.ve = _vehicle_gps.vel_e_m_s / 1e-2f; // from m to cm
+			gps.vd = _vehicle_gps.vel_d_m_s / 1e-2f; // from m to cm
+			gps.cog = (float)(_vehicle_gps.cog_rad) / 3.1415f * (100.0f * 180.0f);
+
+			gps.fix_type = _vehicle_gps.fix_type;
+			gps.satellites_visible = _vehicle_gps.satellites_used;
+
+			PX4_INFO("lat is: %f", (double) gps.lat);
+
 			mavlink_message_t msg;
 			mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);
 			send_mavlink_hil_gps(&msg);
