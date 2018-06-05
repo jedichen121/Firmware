@@ -188,7 +188,7 @@ void Comm_forward::run()
 			gps.fix_type = _vehicle_gps.fix_type;
 			gps.satellites_visible = _vehicle_gps.satellites_used;
 
-			PX4_INFO("lat is: %f", (double) gps.lat);
+//			PX4_INFO("lat is: %f", (double) gps.lat);
 
 			mavlink_message_t msg;
 			mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);
@@ -222,7 +222,7 @@ void Comm_forward::run()
 			gps.fix_type = _vehicle_gps.fix_type;
 			gps.satellites_visible = _vehicle_gps.satellites_used;
 
-			PX4_INFO("lat is: %f", (double) gps.lat);
+//			PX4_INFO("lat is: %f", (double) gps.lat);
 
 			mavlink_message_t msg;
 			mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &gps);

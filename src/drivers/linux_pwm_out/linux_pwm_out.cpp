@@ -534,7 +534,7 @@ void poll_container()
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
-//							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
+							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
 							if (check_control_value(ctrl)) {
 //								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								// for (int j = 0; j < 16; j++)
