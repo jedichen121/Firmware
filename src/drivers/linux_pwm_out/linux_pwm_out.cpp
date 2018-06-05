@@ -348,10 +348,15 @@ void task_main(int argc, char *argv[])
 
 			/* Switch off the PWM limit ramp for the calibration. */
 			_pwm_limit.state = PWM_LIMIT_STATE_ON;
+			PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
+
 		}
+//		PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
 
 		if (_mixer_group != nullptr) {
 			_outputs.timestamp = hrt_absolute_time();
+			PX4_INFO("before: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
 
@@ -365,7 +370,7 @@ void task_main(int argc, char *argv[])
 				PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
 
 				for (size_t i = 0; i < 16; i++)
-					_outputs.output[i] = _dummy_outputs[i];
+					_outputs.output[i] = _dummy_outputs.output[i];
 			}
 
 			/* disable unused ports by setting their output to NaN */
@@ -385,6 +390,7 @@ void task_main(int argc, char *argv[])
 			}
 
 			uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
+			PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
 
 			// TODO FIXME: pre-armed seems broken
 			pwm_limit_calc(_armed.armed,
@@ -416,10 +422,10 @@ void task_main(int argc, char *argv[])
 					pwm[i] = pwm_value;
 				}
 
-//				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 
 			} else {
-//				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 			}
 
 			if (_outputs_pub != nullptr) {
