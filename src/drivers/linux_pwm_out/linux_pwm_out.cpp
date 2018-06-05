@@ -103,6 +103,7 @@ actuator_controls_s _controls[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 orb_id_t 			_controls_topics[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 actuator_outputs_s  _outputs;
 actuator_armed_s    _armed;
+struct actuator_dummy_outputs_s _dummy_outputs;
 
 // polling
 uint8_t _poll_fds_num = 0;
@@ -448,6 +449,11 @@ void task_main(int argc, char *argv[])
 
 	if (rc_channels_sub != -1) {
 		orb_unsubscribe(rc_channels_sub);
+	}
+
+	if (_dummy_outputs_sub != -1) {
+		orb_unsubscribe(_dummy_outputs_sub);
+		_dummy_outputs_sub = -1;
 	}
 
 	_is_running = false;
