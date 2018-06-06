@@ -317,9 +317,7 @@ void task_main(int argc, char *argv[])
 			if (_controls_subs[i] >= 0) {
 				if (_poll_fds[poll_id].revents & POLLIN) {
 					orb_copy(_controls_topics[i], _controls_subs[i], &_controls[i]);
-				/*receive HIL_ACTUATOR_CONTROLS from container; copy from rover's simulator_mavlink.cpp @zivy*/
-
-
+					/*receive HIL_ACTUATOR_CONTROLS from container; copy from rover's simulator_mavlink.cpp @zivy*/
 				}
 
 				poll_id++;
@@ -348,14 +346,12 @@ void task_main(int argc, char *argv[])
 
 			/* Switch off the PWM limit ramp for the calibration. */
 			_pwm_limit.state = PWM_LIMIT_STATE_ON;
-			PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
-
 		}
 //		PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
 
 		if (_mixer_group != nullptr) {
 			_outputs.timestamp = hrt_absolute_time();
-			PX4_INFO("before: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+			// PX4_INFO("before: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
 
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
@@ -390,7 +386,7 @@ void task_main(int argc, char *argv[])
 			}
 
 			uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-			PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+			// PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
 
 			// TODO FIXME: pre-armed seems broken
 			pwm_limit_calc(_armed.armed,
@@ -621,12 +617,18 @@ void convert_to_output(struct actuator_dummy_outputs_s &aout, mavlink_hil_actuat
 {
 	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
 
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++) {
 		// this only works for quadcopter for now
 		if (i < 4)
 			aout.output[i] = ctrl.controls[i] * (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) + PWM_DEFAULT_MIN;
 		else
 			aout.output[i] = ctrl.controls[i] * ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2) + pwm_center;
+
+		/* scale PWM output between -1.0 - 1.0 */
+		outputs.output[i] = (outputs.output[i] - 1500) / 500.0f;
+
+	}
+
 
 }
 
