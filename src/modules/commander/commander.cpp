@@ -2734,6 +2734,7 @@ int commander_thread_main(int argc, char *argv[])
 			 * check if left stick is in lower right position or arm button is pushed or arm switch has transition from disarm to arm
 			 * and we're in MANUAL mode */
 			const bool stick_in_lower_right = (sp_man.r > STICK_ON_OFF_LIMIT && sp_man.z < 0.1f);
+			PX4_INFO("stick in lower right: %d", stick_in_lower_right);
 			const bool arm_switch_to_arm_transition = arm_switch_is_button == 0 &&
 					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF &&
 					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
