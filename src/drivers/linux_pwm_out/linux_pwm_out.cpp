@@ -65,7 +65,7 @@
 #include <v1.0/mavlink_types.h>
 #include <v1.0/common/mavlink.h>
 #include <drivers/drv_pwm_output.h>
-
+#include <arpa/inet.h>
 
 static int _fd3;
 // static int _fd;
@@ -362,8 +362,8 @@ void task_main(int argc, char *argv[])
 
 			if (updated) {
 				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
-				PX4_INFO("dummy: %f %f %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3], (double) _dummy_outputs.output[4], (double) _dummy_outputs.output[5]);
-				PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
+				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 				for (size_t i = 0; i < 16; i++)
 					_outputs.output[i] = _dummy_outputs.output[i];
@@ -494,7 +494,7 @@ void poll_container()
 	// try to setup udp socket for communcation with simulator
 	memset((char *)&_con_recv_addr, 0, sizeof(_con_recv_addr));
 	_con_recv_addr.sin_family = AF_INET;
-	_con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_recv_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
 	_con_recv_addr.sin_port = htons(14600);
 
 	if ((_fd3 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -553,7 +553,7 @@ void poll_container()
 							mavlink_hil_actuator_controls_t ctrl;
 							mavlink_msg_hil_actuator_controls_decode(&msg, &ctrl);
 
-							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
+//							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
 							if (check_control_value(ctrl)) {
 //								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								// for (int j = 0; j < 16; j++)
@@ -625,7 +625,7 @@ void convert_to_output(struct actuator_dummy_outputs_s &aout, mavlink_hil_actuat
 			aout.output[i] = ctrl.controls[i] * ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2) + pwm_center;
 
 		/* scale PWM output between -1.0 - 1.0 */
-		outputs.output[i] = (outputs.output[i] - 1500) / 500.0f;
+		aout.output[i] = (aout.output[i] - 1500) / 500.0f;
 
 	}
 
