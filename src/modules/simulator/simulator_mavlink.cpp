@@ -227,28 +227,28 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	// PX4_INFO("y: %8.4f\n", (double)imu->yacc);
 	// PX4_INFO("z: %8.4f\n", (double)imu->zacc);
 
-	if ((double) imu->temperature > -273.0)
-	{
-		RawBaroData baro = {};
-		// calculate air pressure from altitude (valid for low altitude)
-		baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
-		baro.altitude = imu->pressure_alt;
-		baro.temperature = imu->temperature;
+// 	if ((double) imu->temperature > -273.0)
+// 	{
+// 		RawBaroData baro = {};
+// 		// calculate air pressure from altitude (valid for low altitude)
+// 		baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
+// 		baro.altitude = imu->pressure_alt;
+// 		baro.temperature = imu->temperature;
 
-		write_baro_data(&baro);
+// 		write_baro_data(&baro);
 
-		RawAirspeedData airspeed = {};
-		airspeed.temperature = imu->temperature;
-		airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
+// 		RawAirspeedData airspeed = {};
+// 		airspeed.temperature = imu->temperature;
+// 		airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
 
-		write_airspeed_data(&airspeed);
+// 		write_airspeed_data(&airspeed);
 
-		// this is a baro only message from host px4
-		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
-//			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
-			return;
-		}
-	}
+// 		// this is a baro only message from host px4
+// 		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
+// //			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
+// 			return;
+// 		}
+//	 }
 
 	// write sensor data to memory so that drivers can copy data from there
 	RawMPUData mpu = {};
@@ -279,7 +279,19 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	write_mag_data(&mag);
 	perf_begin(_perf_mag);
 
-	
+	RawBaroData baro = {};
+	// calculate air pressure from altitude (valid for low altitude)
+	baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
+	baro.altitude = imu->pressure_alt;
+	baro.temperature = imu->temperature;
+
+	write_baro_data(&baro);
+
+	RawAirspeedData airspeed = {};
+	airspeed.temperature = imu->temperature;
+	airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
+
+	write_airspeed_data(&airspeed);	
 }
 
 void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
