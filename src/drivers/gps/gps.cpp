@@ -956,7 +956,7 @@ GPS::publish()
 	// 		_hil_gps_msg.vn = _report_gps_pos.vel_n_m_s;
 	// 		_hil_gps_msg.ve = _report_gps_pos.vel_e_m_s;
 	// 		_hil_gps_msg.vd = _report_gps_pos.vel_d_m_s;
-	// //		PX4_INFO("%f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)_hil_gps_msg.lat);
+			PX4_INFO("%f, %f, %f, %f",(double)_report_gps_pos.time_utc_usec, (double)_report_gps_pos.lat, (double)_report_gps_pos.lat, (double) _report_gps_pos.timestamp);
 	// 		//send GPS to container, mavlink copy from gazebo @Zivy
 	// 		mavlink_message_t msg;
 	// 		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
