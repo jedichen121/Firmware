@@ -185,6 +185,7 @@ private:
 	// used for socket
 	
 	sockaddr_in _send_addr;
+	int sensor_baro_sub;
 
 };
 
@@ -256,6 +257,7 @@ DfLsm9ds1Wrapper::~DfLsm9ds1Wrapper()
 	perf_free(_accel_range_hit_counter);
 
 	perf_free(_publish_perf);
+	orb_unsubscribe(sensor_baro_sub);
 }
 
 int DfLsm9ds1Wrapper::start()
@@ -328,6 +330,8 @@ int DfLsm9ds1Wrapper::start()
 		PX4_WARN("create socket failed\n");
 		return 1;
 	}
+
+	sensor_baro_sub = orb_subscribe(ORB_ID(sensor_baro));
 
 
 	return 0;
@@ -760,10 +764,21 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		_hil_sensor.ymag = mag_report.y;
 		_hil_sensor.zmag = mag_report.z;
 
-		_hil_sensor.abs_pressure = 0;
-		_hil_sensor.diff_pressure = 0;
-		_hil_sensor.pressure_alt = 0;
-		_hil_sensor.temperature = -274; // impossible value for celsius temperature
+
+		baro_report baro_report = {};
+
+		orb_copy(ORB_ID(sensor_baro), sensor_baro_sub, &baro_report);
+
+		_hil_sensor.abs_pressure = baro_report.pressure;
+		_hil_sensor.diff_pressure = baro_report.pressure;
+		_hil_sensor.pressure_alt = baro_report.altitude;
+		_hil_sensor.temperature = baro_report.temperature;
+
+		// when separating baro and other imus
+		// _hil_sensor.abs_pressure = 0;
+		// _hil_sensor.diff_pressure = 0;
+		// _hil_sensor.pressure_alt = 0;
+		// _hil_sensor.temperature = -274; // impossible value for celsius temperature
 		
 //		printf("x: %8.4f\n",(double)accel_report.x);
 //		printf("y: %8.4f\n",(double)accel_report.y);
