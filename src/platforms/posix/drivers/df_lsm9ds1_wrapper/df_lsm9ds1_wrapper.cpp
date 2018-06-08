@@ -65,6 +65,8 @@
 #include <lib/conversion/rotation.h>
 
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/sensor_baro.h>
+#include <drivers/drv_baro.h>
 
 #include <lsm9ds1/LSM9DS1.hpp>
 #include <DevMgr.hpp>
