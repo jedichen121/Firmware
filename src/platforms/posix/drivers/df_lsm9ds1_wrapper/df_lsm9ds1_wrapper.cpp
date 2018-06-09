@@ -771,7 +771,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 
 		orb_copy(ORB_ID(sensor_baro), sensor_baro_sub, &baro_report);
 
-		PX4_INFO("baro subscribe: %f", (double) baro_report.pressure, (double) baro_report.altitude, (double) hrt_absolute_time());
+//		PX4_INFO("baro subscribe: %f %f %f", (double) baro_report.pressure, (double) baro_report.altitude, (double) _hil_sensor.time_usec);
 
 
 		_hil_sensor.abs_pressure = baro_report.pressure;

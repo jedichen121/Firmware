@@ -218,7 +218,7 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 
 		} else {
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &baro_report);
-			PX4_INFO("baro publish: %f", (double) baro_report.pressure, (double) baro_report.altitude, (double) baro_report.timestamp);
+//			PX4_INFO("baro publish: %f %f %f", (double) baro_report.pressure, (double) baro_report.altitude, (double) hrt_absolute_time());
 		}
 
 		// //@zivy
