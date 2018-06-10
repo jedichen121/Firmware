@@ -567,8 +567,15 @@ void poll_container()
 								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
 						}
-						else if (msg.msgid != 0) 
+						else if (msg.msgid != 0) {
 							PX4_INFO("msgid is %d", msg.msgid);
+							if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
+								mavlink_hil_sensor_t imu;
+								mavlink_msg_hil_sensor_decode(msg, &imu);
+								PX4_INFO("imu received: %f %f %f %f", (double) imu.pressure, (double) imu.altitude, (double) imu.time_usec, (double) hrt_absolute_time());
+							}
+
+						}
 					}
 				}
 			}
