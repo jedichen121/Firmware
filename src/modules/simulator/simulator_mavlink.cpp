@@ -320,6 +320,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 {
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_HIL_SENSOR: {
+//			send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
 			mavlink_hil_sensor_t imu;
 			mavlink_msg_hil_sensor_decode(msg, &imu);
 
@@ -334,7 +335,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			hrt_abstime curr_sitl_time = hrt_absolute_time();
 			hrt_abstime curr_sim_time = imu.time_usec;
-			// PX4_INFO("%f, %f, %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time());
+			PX4_INFO("%f, %f, %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time());
 			if (compensation_enabled && _initialized
 			    && _last_sim_timestamp > 0 && _last_sitl_timestamp > 0
 			    && _last_sitl_timestamp < curr_sitl_time
@@ -392,8 +393,10 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			}
 
 			update_sensors(&imu);
-
-			send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, &msg, 200);
+			imu.diff_pressure = 900;
+			imu.time_usec = 1000;
+			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, msg, &imu);
+			send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
 
 			// battery simulation
 			const float discharge_interval_us = _battery_drain_interval_s.get() * 1000 * 1000;
