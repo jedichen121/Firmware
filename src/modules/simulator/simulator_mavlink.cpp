@@ -309,10 +309,6 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 
 	write_airspeed_data(&airspeed);	
 
-	mavlink_message_t msg;
-	mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, imu);
-	send_mavlink_hil_sensor(&msg);
-
 }
 
 void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
@@ -406,6 +402,10 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			_last_sitl_timestamp = curr_sitl_time;
 			_last_sim_timestamp = curr_sim_time;
 
+			mavlink_message_t hil_msg;
+			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, imu);
+			send_mavlink_hil_sensor(&hil_msg);
+
 			// correct timestamp
 			imu.time_usec = now;
 
@@ -414,10 +414,6 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			}
 
 			update_sensors(&imu);
-			// imu.diff_pressure = 900;
-			// imu.time_usec = 1000;
-			// mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, msg, &imu);
-			// send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
 
 			// battery simulation
 			const float discharge_interval_us = _battery_drain_interval_s.get() * 1000 * 1000;
