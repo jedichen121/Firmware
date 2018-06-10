@@ -45,6 +45,8 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/rc_channels.h>
 #include <uORB/topics/actuator_dummy_outputs.h>
+#include <uORB/topics/hil_sensor.h>
+
 
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_mixer.h>
@@ -571,7 +573,7 @@ void poll_container()
 							PX4_INFO("msgid is %d", msg.msgid);
 							if (msg.msgid == MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS) {
 								mavlink_hil_sensor_t imu;
-								mavlink_msg_hil_sensor_decode(msg, &imu);
+								mavlink_msg_hil_sensor_decode(&msg, &imu);
 								PX4_INFO("imu received: %f %f %f %f", (double) imu.pressure, (double) imu.altitude, (double) imu.time_usec, (double) hrt_absolute_time());
 							}
 
