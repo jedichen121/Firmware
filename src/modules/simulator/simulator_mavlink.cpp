@@ -220,6 +220,20 @@ static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t 
 	rc->values[17] = rc_channels->chan18_raw;
 }
 
+void send_mavlink_hil_sensor(const mavlink_message_t *msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_sendaddr, sizeof(_send_addr));
+
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+
+}
+
 void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 {
 
@@ -292,6 +306,11 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
 
 	write_airspeed_data(&airspeed);	
+
+	mavlink_message_t msg;
+	mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, imu);
+	send_mavlink_hil_sensor(&msg);
+
 }
 
 void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
@@ -393,10 +412,10 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			}
 
 			update_sensors(&imu);
-			imu.diff_pressure = 900;
-			imu.time_usec = 1000;
-			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, msg, &imu);
-			send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
+			// imu.diff_pressure = 900;
+			// imu.time_usec = 1000;
+			// mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, msg, &imu);
+			// send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
 
 			// battery simulation
 			const float discharge_interval_us = _battery_drain_interval_s.get() * 1000 * 1000;
