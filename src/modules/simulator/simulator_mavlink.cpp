@@ -86,6 +86,8 @@ const unsigned mode_flag_custom = 1;
 
 using namespace simulator;
 
+void send_mavlink_hil_sensor(const mavlink_message_t *msg);
+
 void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsigned index)
 {
 	msg.time_usec = hrt_absolute_time();
@@ -226,7 +228,7 @@ void send_mavlink_hil_sensor(const mavlink_message_t *msg) {
 
 //	PX4_INFO("SENDING GPS MESSAGES");
 
-	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_sendaddr, sizeof(_send_addr));
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_sendaddr, sizeof(_sendaddr));
 
 	if (len <= 0) {
 		PX4_INFO("Failed sending mavlink message\n");
