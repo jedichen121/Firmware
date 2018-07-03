@@ -403,7 +403,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			_last_sim_timestamp = curr_sim_time;
 
 			mavlink_message_t hil_msg;
-			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, imu);
+			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &imu);
 			send_mavlink_hil_sensor(&hil_msg);
 
 			// correct timestamp
