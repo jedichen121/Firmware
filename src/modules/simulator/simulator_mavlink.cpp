@@ -84,6 +84,8 @@ static hrt_abstime batt_sim_start = 0;
 const unsigned mode_flag_armed = 128; // following MAVLink spec
 const unsigned mode_flag_custom = 1;
 
+hrt_abstime prev_time = 0;
+
 using namespace simulator;
 
 void send_mavlink_hil_sensor(const mavlink_message_t *msg);
@@ -352,7 +354,8 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			hrt_abstime curr_sitl_time = hrt_absolute_time();
 			hrt_abstime curr_sim_time = imu.time_usec;
-			PX4_INFO("%f, %f, %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time());
+			PX4_INFO("%f, %f, %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) curr_sitl_time - prev_time);
+			prev_time = hrt_absolute_time();
 			if (compensation_enabled && _initialized
 			    && _last_sim_timestamp > 0 && _last_sitl_timestamp > 0
 			    && _last_sitl_timestamp < curr_sitl_time
