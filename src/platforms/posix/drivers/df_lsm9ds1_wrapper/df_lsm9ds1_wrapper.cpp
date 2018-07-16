@@ -794,7 +794,7 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 		 	mavlink_message_t msg;
 			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_sensor);
 			send_mavlink_hil_sensor(&msg);
-			PX4_INFO("imu sended: %f %f %f", (double) _hil_sensor.diff_pressure, (double) _hil_sensor.time_usec, (double) hrt_absolute_time());
+//			PX4_INFO("imu sended: %f %f %f", (double) _hil_sensor.diff_pressure, (double) _hil_sensor.time_usec, (double) hrt_absolute_time());
 		}
 
 		// Report if there are high vibrations, every 10 times it happens.
