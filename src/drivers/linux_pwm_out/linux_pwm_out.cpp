@@ -570,11 +570,11 @@ void poll_container()
 							}
 						}
 						else if (msg.msgid != 0) {
-							PX4_INFO("msgid is %d", msg.msgid);
+//							PX4_INFO("msgid is %d", msg.msgid);
 							if (msg.msgid == MAVLINK_MSG_ID_HIL_SENSOR) {
 								mavlink_hil_sensor_t imu;
 								mavlink_msg_hil_sensor_decode(&msg, &imu);
-								PX4_INFO("imu received: %f %f %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time());
+								PX4_INFO("imu received: %f %f %f %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time(), (double) hrt_absolute_time()-imu.time_usec);
 							}
 
 						}
