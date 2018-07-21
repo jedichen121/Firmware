@@ -122,6 +122,10 @@
 #include <uORB/topics/vehicle_status_flags.h>
 #include <uORB/topics/vtol_vehicle_status.h>
 
+#include "../mavlink/v1.0/common/mavlink.h"
+#include <netinet/in.h>
+ #include <arpa/inet.h>
+//#include "../FirmwarePlugin/FirmwarePlugin.h"
 typedef enum VEHICLE_MODE_FLAG
 {
 	VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED=1, /* 0b00000001 Reserved for future use. | */
@@ -261,6 +265,9 @@ static bool _last_condition_global_position_valid = false;
 
 static struct vehicle_land_detected_s land_detector = {};
 
+mavlink_command_long_t _command_long_msg;
+sockaddr_in _send_addr_2;
+static int _fd;
 /**
  * The daemon app only briefly exists to start
  * the background job. The stack size assigned in the
@@ -334,7 +341,7 @@ static void answer_command(struct vehicle_command_s &cmd, unsigned result,
 
 /* publish vehicle status flags from the global variable status_flags*/
 static void publish_status_flags(orb_advert_t &vehicle_status_flags_pub);
-
+void send_mode_switch(int base_mode, int custom_mode_main,int custom_mode_sub);
 
 static int power_button_state_notification_cb(board_power_button_state_notification_e request)
 {
@@ -798,6 +805,7 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 	}
 	break;
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_MODE: {
+
 			uint8_t base_mode = (uint8_t)cmd->param1;
 			uint8_t custom_main_mode = (uint8_t)cmd->param2;
 			uint8_t custom_sub_mode = (uint8_t)cmd->param3;
@@ -805,6 +813,9 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 			transition_result_t arming_ret = TRANSITION_NOT_CHANGED;
 
 			transition_result_t main_ret = TRANSITION_NOT_CHANGED;
+
+//			PX4_INFO("~~~~VEHICLE_CMD_DO_SET_MODE base mode %d ",base_mode);
+
 
 			/* set HIL state */
 			hil_state_t new_hil_state = (base_mode & VEHICLE_MODE_FLAG_HIL_ENABLED) ? vehicle_status_s::HIL_STATE_ON : vehicle_status_s::HIL_STATE_OFF;
@@ -1395,6 +1406,18 @@ int commander_thread_main(int argc, char *argv[])
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_DESCEND]		= "DESCEND";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_TERMINATION]		= "TERMINATION";
 	// nav_states_str[vehicle_status_s::NAVIGATION_STATE_OFFBOARD]		= "OFFBOARD";
+
+
+	memset((char *) &_send_addr_2, 0, sizeof(_send_addr_2));
+		_send_addr_2.sin_family = AF_INET;
+		_send_addr_2.sin_addr.s_addr = inet_addr("172.17.0.1");
+
+		_send_addr_2.sin_port = htons(14556);
+
+		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			PX4_WARN("create socket failed");
+//			return;
+		}
 
 	/* pthread for slow low prio thread */
 	pthread_t commander_low_prio_thread;
@@ -3402,7 +3425,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 {
 	/* set main state according to RC switches */
 	transition_result_t res = TRANSITION_DENIED;
-
+//PX4_INFO("start set main state rc");
 	// Note: even if status_flags.offboard_control_set_by_command is set
 	// we want to allow rc mode change to take precidence.  This is a safety
 	// feature, just in case offboard control goes crazy.
@@ -3433,7 +3456,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			internal_state.main_state == commander_state_s::MAIN_STATE_ACRO ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_RATTITUDE ||
 			internal_state.main_state == commander_state_s::MAIN_STATE_STAB)) {
-
+//			PX4_INFO("start set main state rc 1"); always run
 			_last_sp_man.timestamp = sp_man.timestamp;
 			_last_sp_man.x = sp_man.x;
 			_last_sp_man.y = sp_man.y;
@@ -3456,7 +3479,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_OFFBOARD, main_state_prev, &status_flags, &internal_state);
 
 		if (res == TRANSITION_DENIED) {
-			print_reject_mode(status_local, "OFFBOARD");
+			print_reject_mode(status_local, "OFFBOARD~~~");
 			/* mode rejected, continue to evaluate the main system mode */
 
 		} else {
@@ -3478,6 +3501,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 
 		if (res != TRANSITION_DENIED) {
 			/* changed successfully or already in this state */
+			PX4_INFO("start set main state rc: auto rtl");
 			return res;
 		}
 
@@ -3492,6 +3516,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			print_reject_mode(status_local, "AUTO HOLD");
 
 		} else {
+			PX4_INFO("start set main state rc: auto hold");
 			return res;
 		}
 	}
@@ -3526,10 +3551,15 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 
 					/* fall back to loiter */
 					new_mode = commander_state_s::MAIN_STATE_AUTO_LOITER;
-					print_reject_mode(status_local, "AUTO MISSION");
+					print_reject_mode(status_local, "AUTO MISSION~~~");
 					res = main_state_transition(status_local, new_mode, main_state_prev, &status_flags, &internal_state);
 
+					//test by Zhiwei
+					 send_mode_switch(209,1,0);
+
 					if (res != TRANSITION_DENIED) {
+
+						PX4_INFO("start set main state rc: auto mission");
 						break;
 					}
 				}
@@ -3590,6 +3620,10 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 					res = main_state_transition(status_local, new_mode, main_state_prev, &status_flags, &internal_state);
 
 					if (res != TRANSITION_DENIED) {
+						PX4_INFO("set rc: auto hold");
+
+						 send_mode_switch(209,4,3); //params of hold mode, beyond the observation from QGC
+
 						break;
 					}
 				}
@@ -3631,7 +3665,7 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 				}
 			}
 		}
-
+//		PX4_INFO（"set_main_state_rc res: %d", res);
 		return res;
 	}
 
@@ -3660,6 +3694,11 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 
 				} else {
 					res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
+					//Zhiwei
+					if (res!=TRANSITION_DENIED)
+					{
+						send_mode_switch(157,1,0);
+					}
 				}
 
 			} else if (sp_man.rattitude_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
@@ -3674,6 +3713,10 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 
 			} else {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
+				//Zhiwei
+				if (res != TRANSITION_DENIED) {
+					send_mode_switch(157, 1, 0);
+				}
 			}
 
 		} else {
@@ -3683,7 +3726,10 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			 */
 			if (sp_man.man_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
-
+				//Zhiwei
+				if (res != TRANSITION_DENIED) {
+					send_mode_switch(157, 1, 0);
+				}
 			} else if (sp_man.acro_switch == manual_control_setpoint_s::SWITCH_POS_ON) {
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_ACRO, main_state_prev, &status_flags, &internal_state);
 
@@ -3696,7 +3742,10 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 			} else if (sp_man.man_switch == manual_control_setpoint_s::SWITCH_POS_NONE) {
 				// default to MANUAL when no manual switch is set
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
-
+				//Zhiwei
+				if (res != TRANSITION_DENIED) {
+					send_mode_switch(157, 1, 0);
+				}
 			} else {
 				// default to STAB when the manual switch is assigned (but off)
 				res = main_state_transition(status_local, commander_state_s::MAIN_STATE_STAB, main_state_prev, &status_flags, &internal_state);
@@ -3731,6 +3780,10 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		// fallback to MANUAL
 		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
 		// TRANSITION_DENIED is not possible here
+		//Zhiwei manual
+		if (res != TRANSITION_DENIED) {
+			send_mode_switch(157, 1, 0);
+		}
 		break;
 
 	case manual_control_setpoint_s::SWITCH_POS_ON:			// AUTO
@@ -3766,13 +3819,51 @@ set_main_state_rc(struct vehicle_status_s *status_local, vehicle_global_position
 		// fallback to MANUAL
 		res = main_state_transition(status_local, commander_state_s::MAIN_STATE_MANUAL, main_state_prev, &status_flags, &internal_state);
 		// TRANSITION_DENIED is not possible here
+		//Zhiwei
+		if (res != TRANSITION_DENIED) {
+			send_mode_switch(157, 1, 0);
+		}
 		break;
 
 	default:
 		break;
 	}
-
+//PX4_INFO("~~!!!@ set main state rc");
 	return res;
+}
+
+
+//add by Zhiwei send mavlink messages to continar, through port 14556, and container should open mavlink in iris
+void send_mode_switch(int base_mode, int custom_mode_main,int custom_mode_sub)
+{
+	_command_long_msg.param5 = 0;
+	_command_long_msg.param6 = 0;
+	//copy the content of mavlink_command_long_t cmd_mavlink into command_t cmd
+	_command_long_msg.param1 = (float) base_mode;	//new_mode.base_mode,
+	_command_long_msg.param2 = (float) custom_mode_main;//custom_mode.main_mode,
+	_command_long_msg.param3 = (float) custom_mode_sub;	//custom_mode.sub_mode,
+	_command_long_msg.param4 = 0;
+	_command_long_msg.param7 = 0;
+	_command_long_msg.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+	_command_long_msg.target_system = 1;	//new_mode.target_system,
+	_command_long_msg.target_component = 0;
+	_command_long_msg.confirmation = 1;
+
+	//send mavlink messages@ copy from qgc
+	mavlink_message_t msg;
+	mavlink_msg_command_long_encode_chan(1, 200, MAVLINK_COMM_0, &msg,
+			&_command_long_msg);
+	//send mavlink message
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, &msg);
+	ssize_t len = sendto(_fd, buffer, packetlen, 0,
+			(struct sockaddr *) &_send_addr_2, sizeof(_send_addr_2));
+//	if (_command_long_msg.param3==0){
+		PX4_INFO("sending message %f",(double) _command_long_msg.param3);
+//	}
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
 }
 
 void
