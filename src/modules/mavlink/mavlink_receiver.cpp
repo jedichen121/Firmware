@@ -444,9 +444,12 @@ MavlinkReceiver::send_flight_information()
 void
 MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 {
+
 	/* command */
 	mavlink_command_long_t cmd_mavlink;
 	mavlink_msg_command_long_decode(msg, &cmd_mavlink);
+
+//	PX4_INFO("RECEIVEING MESSAGE %d",cmd_mavlink.command );
 
 	bool target_ok = evaluate_target_ok(cmd_mavlink.command, cmd_mavlink.target_system, cmd_mavlink.target_component);
 
@@ -524,6 +527,7 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 		} else {
 			orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
+			PX4_INFO("publish vehicle_command %d",vcmd.command );
 		}
 	}
 
@@ -2504,6 +2508,7 @@ MavlinkReceiver::receive_thread(void *arg)
 
 						/* handle generic messages and commands */
 						handle_message(&msg);
+
 
 						/* handle packet with mission manager */
 						_mission_manager.handle_message(&msg);

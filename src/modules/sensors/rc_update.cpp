@@ -358,7 +358,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 		/* publish rc_channels topic even if signal is invalid, for debug */
 		int instance;
 		orb_publish_auto(ORB_ID(rc_channels), &_rc_pub, &_rc, &instance, ORB_PRIO_DEFAULT);
-//		PX4_INFO("remote control: %f %f %f %f", (double)_rc.channels[0], (double)_rc.channels[1], (double)_rc.channels[2] ,(double)_rc.channels[3]);
+//		PX4_INFO("remote control: %d %f %f %f", rc_input.timestamp_last_signal, (double)_rc.channels[1], (double)_rc.channels[2] ,(double)_rc.channels[3]);
 
 		/* only publish manual control if the signal is still present and was present once */
 		if (!signal_lost && rc_input.timestamp_last_signal > 0) {
@@ -450,7 +450,9 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 			orb_publish_auto(ORB_ID(manual_control_setpoint), &_manual_control_pub, &manual, &instance,
 					 ORB_PRIO_HIGH);
 //			PX4_INFO("manual control: %f %f %f %f", (double)manual.x, (double)manual.y, (double)manual.z ,(double)manual.r);
-
+//			PX4_INFO("manual control: %d %d %d %d %d %d %d %d %d %d %d %d %d", manual.mode_switch, manual.return_switch, manual.rattitude_switch ,
+//								manual.posctl_switch, manual.acro_switch, manual.offboard_switch, manual.kill_switch, manual.arm_switch,
+//								manual.transition_switch, manual.gear_switch, manual.mode_slot,manual.man_switch,manual.stab_switch);
 			/* copy from mapped manual control to control group 3 */
 			struct actuator_controls_s actuator_group_3 = {};
 

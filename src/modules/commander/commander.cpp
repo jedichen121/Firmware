@@ -2735,7 +2735,7 @@ int commander_thread_main(int argc, char *argv[])
 			const bool arm_switch_to_arm_transition = arm_switch_is_button == 0 &&
 					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF &&
 					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
-
+//			PX4_INFO("ready to arm");
 			if (!in_armed_state &&
 				status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
 				(stick_in_lower_right || arm_button_pressed || arm_switch_to_arm_transition) ) {
@@ -2774,6 +2774,7 @@ int commander_thread_main(int argc, char *argv[])
 
 						if (arming_ret == TRANSITION_CHANGED) {
 							arming_state_changed = true;
+//							PX4_INFO("~~~~maybe arming 1");
 						} else {
 							usleep(100000);
 							print_reject_arm("NOT ARMING: Preflight checks failed");
@@ -2784,12 +2785,15 @@ int commander_thread_main(int argc, char *argv[])
 			/* do not reset the counter when holding the arm button longer than needed */
 			} else if (!(arm_switch_is_button == 1 && sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON)) {
 				stick_on_counter = 0;
+//				PX4_INFO("~~~~maybe NOT arming 3");//always run this branch
+//				PX4_INFO("arm_switch_is_button=%d, sp_man.arm_switch=%d", arm_switch_is_button, sp_man.arm_switch);
 			}
 
 			_last_sp_man_arm_switch = sp_man.arm_switch;
 
 			if (arming_ret == TRANSITION_CHANGED) {
 				arming_state_changed = true;
+//				PX4_INFO("~~~~maybe arming 4");
 
 			} else if (arming_ret == TRANSITION_DENIED) {
 				/*
@@ -2799,6 +2803,7 @@ int commander_thread_main(int argc, char *argv[])
 				 *  - system not in manual mode
 				 */
 				tune_negative(true);
+//				PX4_INFO("~~~~maybe NOT arming 5");
 			}
 
 			/* evaluate the main state machine according to mode switches */

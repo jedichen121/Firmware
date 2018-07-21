@@ -595,7 +595,7 @@ PWMSim::task_main()
 
 			/* and publish for anyone that cares to see */
 			orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &outputs);
-			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
+//			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 		}
 
