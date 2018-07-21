@@ -1044,6 +1044,7 @@ Navigator::publish_vehicle_cmd(vehicle_command_s *vcmd)
 
 	if (_vehicle_cmd_pub != nullptr) {
 		orb_publish(ORB_ID(vehicle_command), _vehicle_cmd_pub, vcmd);
+				PX4_INFO("publish vehicle_command param1=%f", (double)vcmd->param1);
 
 	} else {
 		_vehicle_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);

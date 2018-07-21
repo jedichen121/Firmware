@@ -95,6 +95,8 @@ static void arm_auth_request_msg_send()
 		handle_vehicle_command_pub = orb_advertise(ORB_ID(vehicle_command), &cmd);
 	} else {
 		orb_publish(ORB_ID(vehicle_command), handle_vehicle_command_pub, &cmd);
+				PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)cmd.param1,(double)cmd.param2,(double)cmd.param3);
+
 	}
 }
 

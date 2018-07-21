@@ -47,6 +47,7 @@
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/manual_control_setpoint.h>
 
+#include <time.h>
 using namespace sensors;
 
 RCUpdate::RCUpdate(const Parameters &parameters)
@@ -253,12 +254,14 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 {
 	bool rc_updated;
 	orb_check(_rc_sub, &rc_updated);
-//	PX4_INFO("***********rc_updated %d*************", rc_updated);
+//	PX4_INFO("***********parameters %f %f *************", (double)_parameters.trim[1],(double)_parameters.dz[1]);
 	if (rc_updated) {
 		/* read low-level values from FMU or IO RC inputs (PPM, Spektrum, S.Bus) */
 		struct rc_input_values rc_input;
 
 		orb_copy(ORB_ID(input_rc), _rc_sub, &rc_input);
+
+//		PX4_INFO("~~~~~input rc: %f %f %f",(double)rc_input.values[0],(double)rc_input.values[2],(double)rc_input.values[3]);
 
 		/* detect RC signal loss */
 		bool signal_lost;
@@ -288,6 +291,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 				}
 			}
 		}
+//		PX4_INFO("signal_lost %d",signal_lost);
 
 		unsigned channel_limit = rc_input.channel_count;
 
@@ -308,6 +312,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 			if (rc_input.values[i] > _parameters.max[i]) {
 				rc_input.values[i] = _parameters.max[i];
 			}
+//					PX4_INFO("input rc: %f %f %f",(double)rc_input.values[0],(double)rc_input.values[2],(double)rc_input.values[3]);
 
 			/*
 			 * 2) Scale around the mid point differently for lower and upper range.
@@ -355,6 +360,19 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 		/* publish rc_channels topic even if signal is invalid, for debug */
 		int instance;
 		orb_publish_auto(ORB_ID(rc_channels), &_rc_pub, &_rc, &instance, ORB_PRIO_DEFAULT);
+//		printf("input rc values:");
+//		for(int i=0;i<18;i++){
+//			printf("%f ", (double)_rc.channels[i]);
+//		}
+//		printf("\n");
+//				PX4_INFO("remote control: %f %f %f %f", hrt_absolute_time(), (double)_rc.channels[1], (double)_rc.channels[2] ,(double)_rc.channels[3]);
+
+//		  time_t rawtime;
+//		  struct tm * timeinfo;
+//
+//		  time ( &rawtime );
+//		  timeinfo = localtime ( &rawtime );
+//		  printf ( "Current local time and date: %s", asctime (timeinfo) );
 
 		/* only publish manual control if the signal is still present and was present once */
 		if (!signal_lost && rc_input.timestamp_last_signal > 0) {
@@ -384,6 +402,7 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 			manual.x = math::constrain(_filter_pitch.apply(manual.x), -1.f, 1.f);
 			manual.r = math::constrain(_filter_yaw.apply(manual.r), -1.f, 1.f);
 			manual.z = math::constrain(_filter_throttle.apply(manual.z), 0.f, 1.f);
+//			PX4_INFO("manual control: %f %f %f %f", (double)manual.x, (double)manual.y, (double)manual.z ,(double)manual.r);
 
 			if (_parameters.rc_map_flightmode > 0) {
 
@@ -444,6 +463,10 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 			/* publish manual_control_setpoint topic */
 			orb_publish_auto(ORB_ID(manual_control_setpoint), &_manual_control_pub, &manual, &instance,
 					 ORB_PRIO_HIGH);
+//			PX4_INFO("manual control: %d %d %d %d %d %d %d %d %d %d %d %d %d", manual.mode_switch, manual.return_switch, manual.rattitude_switch ,
+//					manual.posctl_switch, manual.acro_switch, manual.offboard_switch, manual.kill_switch, manual.arm_switch,
+//					manual.transition_switch, manual.gear_switch, manual.mode_slot,manual.man_switch,manual.stab_switch);//manual.mode_slot->SA
+
 
 			/* copy from mapped manual control to control group 3 */
 			struct actuator_controls_s actuator_group_3 = {};

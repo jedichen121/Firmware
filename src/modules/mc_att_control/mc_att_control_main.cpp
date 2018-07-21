@@ -1114,7 +1114,7 @@ MulticopterAttitudeControl::task_main_trampoline(int argc, char *argv[])
 void
 MulticopterAttitudeControl::task_main()
 {
-
+PX4_INFO("HELLO");
 	/*
 	 * do subscriptions
 	 */
@@ -1381,7 +1381,7 @@ MulticopterAttitudeControl::task_main()
 		}
 
 		perf_end(_loop_perf);
-//		PX4_INFO("_v_rates_sp.roll= %f",(double)_v_rates_sp.roll/3.14*180);
+		PX4_INFO("controller_status %f %f %f %f",(double)_controller_status.roll_rate_integ, (double)_controller_status.pitch_rate_integ,(double)_controller_status.yaw_rate_integ,(double)_controller_status.timestamp);
 
 	}
 

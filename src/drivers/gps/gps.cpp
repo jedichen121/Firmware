@@ -962,7 +962,7 @@ GPS::publish()
 		mavlink_message_t msg;
 		mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &msg, &_hil_gps_msg);
 		send_mavlink_message(&msg,14660);
-		PX4_INFO("gps: %f %f", (double) _hil_gps_msg.lat, (double) _hil_gps_msg.lon);
+//		PX4_INFO("gps: %f %f", (double) _hil_gps_msg.lat, (double) _hil_gps_msg.lon);
 
 	}
 }
