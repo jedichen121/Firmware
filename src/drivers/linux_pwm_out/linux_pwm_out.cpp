@@ -371,17 +371,11 @@ void task_main(int argc, char *argv[])
 				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 				//PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				//PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
-				
-				// check how many misses are max misses are there
-				if (miss_count > max_miss_count)
-					max_miss_count = miss_count;
-				miss_count = 0;
+
 				for (size_t i = 0; i < 16; i++)
 					_outputs.output[i] = _dummy_outputs.output[i];
 			}
-			else {
-				miss_count += 1;
-			}
+
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
@@ -432,10 +426,10 @@ void task_main(int argc, char *argv[])
 					pwm[i] = pwm_value;
 				}
 
-				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 
 			} else {
-				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 			}
 
 			if (_outputs_pub != nullptr) {
@@ -695,7 +689,6 @@ void stop()
 		PX4_INFO(".");
 	}
 	PX4_INFO("max_delay is: %f", (double) max_delay);
-	PX4_INFO("max_miss_count is: %f", (double) max_miss_count);
 
 	_task_handle = -1;
 }
