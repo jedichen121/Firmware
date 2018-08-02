@@ -76,6 +76,8 @@ sockaddr_in _srcaddr;
 //sockaddr_in _con_send_addr;
 sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
+double max_delay;
+uint32_t max_miss_count;
 #include <simulator/simulator.h>
 
 namespace linux_pwm_out
@@ -288,6 +290,9 @@ void task_main(int argc, char *argv[])
 
 	pwm_limit_init(&_pwm_limit);
 
+	max_miss_count = 0;
+	uint32_t miss_count = 0;
+
 	while (!_task_should_exit) {
 
 		bool updated;
@@ -366,9 +371,16 @@ void task_main(int argc, char *argv[])
 				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 				//PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				//PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
-
+				
+				// check how many misses are max misses are there
+				if (miss_count > max_miss_count)
+					max_miss_count = miss_count;
+				miss_count = 0;
 				for (size_t i = 0; i < 16; i++)
 					_outputs.output[i] = _dummy_outputs.output[i];
+			}
+			else {
+				miss_count += 1;
 			}
 
 			/* disable unused ports by setting their output to NaN */
@@ -420,10 +432,10 @@ void task_main(int argc, char *argv[])
 					pwm[i] = pwm_value;
 				}
 
-				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 
 			} else {
-				pwm_out->send_output_pwm(pwm, _outputs.noutputs);
+				// pwm_out->send_output_pwm(pwm, _outputs.noutputs);
 			}
 
 			if (_outputs_pub != nullptr) {
@@ -521,6 +533,9 @@ void poll_container()
 	int pret = -1;
 	mavlink_status_t udp_status = {};
 
+	double temp = 0;
+	max_delay = 0;
+
 	while (true) {
 		// wait for up to 100ms for data
 		pret = ::poll(&fds[0], fd_count, 100);
@@ -574,7 +589,11 @@ void poll_container()
 							if (msg.msgid == MAVLINK_MSG_ID_HIL_SENSOR) {
 								mavlink_hil_sensor_t imu;
 								mavlink_msg_hil_sensor_decode(&msg, &imu);
+								temp = (double) hrt_absolute_time()-imu.time_usec;
+								if (temp - max_delay > 0)
+									max_delay = temp;
 //								PX4_INFO("imu received: %f %f %f %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time(), (double) hrt_absolute_time()-imu.time_usec);
+
 							}
 
 						}
@@ -675,6 +694,8 @@ void stop()
 		usleep(200000);
 		PX4_INFO(".");
 	}
+	PX4_INFO("max_delay is: %f", (double) max_delay);
+	PX4_INFO("max_miss_count is: %f", (double) max_miss_count);
 
 	_task_handle = -1;
 }
