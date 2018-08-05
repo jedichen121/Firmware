@@ -43,6 +43,8 @@ param set MC_ROLLRATE_D 0.0020
 param set MC_ROLLRATE_I 0.040
 param set MC_YAWRATE_P 0.60
 param set MIS_TAKEOFF_ALT 0.7
+param set MPC_XY_P 5.5
+param set MPC_XY_VEL_P 0.2
 param set MPC_HOLD_MAX_Z 0.6
 param set MPC_HOLD_DZ 0.15
 param set MPC_Z_VEL_I 0.04
@@ -92,6 +94,6 @@ mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_x.main.mix
  mavlink stream -r 20 -s RC_CHANNELS -u 14556
  mavlink stream -r 250 -s HIGHRES_IMU -u 14556
 # mavlink stream -r 10 -s OPTICAL_FLOW_RAD -u 14556
-logger start -e -t
+logger start -t -b 200
 mavlink boot_complete
 replay trystart
