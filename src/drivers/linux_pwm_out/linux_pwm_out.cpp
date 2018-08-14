@@ -45,6 +45,8 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/rc_channels.h>
 #include <uORB/topics/actuator_dummy_outputs.h>
+#include <uORB/topics/hil_sensor.h>
+
 
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_mixer.h>
@@ -65,7 +67,7 @@
 #include <v1.0/mavlink_types.h>
 #include <v1.0/common/mavlink.h>
 #include <drivers/drv_pwm_output.h>
-
+#include <arpa/inet.h>
 
 static int _fd3;
 // static int _fd;
@@ -74,6 +76,7 @@ sockaddr_in _srcaddr;
 //sockaddr_in _con_send_addr;
 sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
+double max_delay;
 #include <simulator/simulator.h>
 
 namespace linux_pwm_out
@@ -91,6 +94,7 @@ static char _mixer_filename[64] = "ROMFS/px4fmu_common/mixers/quad_x.main.mix";
 // subscriptions
 int     _controls_subs[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 int     _armed_sub = -1;
+int 	_dummy_outputs_sub = -1;
 
 // publications
 orb_advert_t    _outputs_pub = nullptr;
@@ -102,6 +106,7 @@ actuator_controls_s _controls[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 orb_id_t 			_controls_topics[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 actuator_outputs_s  _outputs;
 actuator_armed_s    _armed;
+struct actuator_dummy_outputs_s _dummy_outputs;
 
 // polling
 uint8_t _poll_fds_num = 0;
@@ -215,6 +220,9 @@ void subscribe()
 		_armed_sub = orb_subscribe(ORB_ID(actuator_armed));
 
 	}
+
+	_dummy_outputs_sub = orb_subscribe(ORB_ID(actuator_dummy_outputs));
+
 }
 
 void task_main(int argc, char *argv[])
@@ -312,9 +320,7 @@ void task_main(int argc, char *argv[])
 			if (_controls_subs[i] >= 0) {
 				if (_poll_fds[poll_id].revents & POLLIN) {
 					orb_copy(_controls_topics[i], _controls_subs[i], &_controls[i]);
-				/*receive HIL_ACTUATOR_CONTROLS from container; copy from rover's simulator_mavlink.cpp @zivy*/
-
-
+					/*receive HIL_ACTUATOR_CONTROLS from container; copy from rover's simulator_mavlink.cpp @zivy*/
 				}
 
 				poll_id++;
@@ -344,18 +350,33 @@ void task_main(int argc, char *argv[])
 			/* Switch off the PWM limit ramp for the calibration. */
 			_pwm_limit.state = PWM_LIMIT_STATE_ON;
 		}
+//		PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
 
 		if (_mixer_group != nullptr) {
 			_outputs.timestamp = hrt_absolute_time();
+			// PX4_INFO("before: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
+
+
+			// check if there is new output from container
+			orb_check(_dummy_outputs_sub, &updated);
+
+			if (updated) {
+				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
+				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
+				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
+
+				for (size_t i = 0; i < 16; i++)
+					_outputs.output[i] = _dummy_outputs.output[i];
+			}
+
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
 				_outputs.output[i] = NAN;
 			}
-			
-//			PX4_INFO("%f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double)  _outputs.output[2], (double)  _outputs.output[3], (double)  _outputs.output[4]);
 
 			const uint16_t reverse_mask = 0;
 			uint16_t disarmed_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
@@ -369,6 +390,7 @@ void task_main(int argc, char *argv[])
 			}
 
 			uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
+			// PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
 
 			// TODO FIXME: pre-armed seems broken
 			pwm_limit_calc(_armed.armed,
@@ -408,10 +430,6 @@ void task_main(int argc, char *argv[])
 
 			if (_outputs_pub != nullptr) {
 				orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
-//				PX4_INFO("~~SENDING ACTUATOR OUTPUTS");
-
-				//send to container@zivy
-				// poll_container();
 			} else {
 				_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);
 			}
@@ -437,6 +455,11 @@ void task_main(int argc, char *argv[])
 
 	if (rc_channels_sub != -1) {
 		orb_unsubscribe(rc_channels_sub);
+	}
+
+	if (_dummy_outputs_sub != -1) {
+		orb_unsubscribe(_dummy_outputs_sub);
+		_dummy_outputs_sub = -1;
 	}
 
 	_is_running = false;
@@ -475,7 +498,7 @@ void poll_container()
 	// try to setup udp socket for communcation with simulator
 	memset((char *)&_con_recv_addr, 0, sizeof(_con_recv_addr));
 	_con_recv_addr.sin_family = AF_INET;
-	_con_recv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	_con_recv_addr.sin_addr.s_addr = inet_addr("172.17.0.1");
 	_con_recv_addr.sin_port = htons(14600);
 
 	if ((_fd3 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -499,6 +522,9 @@ void poll_container()
 
 	int pret = -1;
 	mavlink_status_t udp_status = {};
+
+	double temp = 0;
+	max_delay = 0;
 
 	while (true) {
 		// wait for up to 100ms for data
@@ -540,15 +566,27 @@ void poll_container()
 								// for (int j = 0; j < 16; j++)
 								// 	aout.output[j] = ctrl.controls[j];
 								convert_to_output(aout, ctrl);
-//								PX4_INFO("%f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
+//								PX4_INFO("output: %f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
+//								PX4_INFO("timestamp: %f", (double) aout.timestamp);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
 								int dummy_multi;
 								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
 						}
-						else if (msg.msgid != 0) 
-							PX4_INFO("msgid is %d", msg.msgid);
+						else if (msg.msgid != 0) {
+//							PX4_INFO("msgid is %d", msg.msgid);
+							if (msg.msgid == MAVLINK_MSG_ID_HIL_SENSOR) {
+								mavlink_hil_sensor_t imu;
+								mavlink_msg_hil_sensor_decode(&msg, &imu);
+								temp = (double) hrt_absolute_time()-imu.time_usec;
+								if (temp - max_delay > 0)
+									max_delay = temp;
+//								PX4_INFO("imu received: %f %f %f %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) hrt_absolute_time(), (double) hrt_absolute_time()-imu.time_usec);
+
+							}
+
+						}
 					}
 				}
 			}
@@ -597,12 +635,18 @@ void convert_to_output(struct actuator_dummy_outputs_s &aout, mavlink_hil_actuat
 {
 	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
 
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++) {
 		// this only works for quadcopter for now
 		if (i < 4)
 			aout.output[i] = ctrl.controls[i] * (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) + PWM_DEFAULT_MIN;
 		else
 			aout.output[i] = ctrl.controls[i] * ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2) + pwm_center;
+
+		/* scale PWM output between -1.0 - 1.0 */
+		aout.output[i] = (aout.output[i] - 1500) / 500.0f;
+
+	}
+
 
 }
 
@@ -640,6 +684,7 @@ void stop()
 		usleep(200000);
 		PX4_INFO(".");
 	}
+	PX4_INFO("max_delay is: %f", (double) max_delay);
 
 	_task_handle = -1;
 }
