@@ -188,6 +188,7 @@ MavlinkMissionManager::update_active_mission(int dataman_id, unsigned count, int
 
 		} else {
 			orb_publish(ORB_ID(offboard_mission), _offboard_mission_pub, &mission);
+			PX4_INFO("publish offboard mission");
 		}
 
 		return PX4_OK;
@@ -591,9 +592,11 @@ MavlinkMissionManager::handle_message(const mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_MISSION_COUNT:
 		handle_mission_count(msg);
+		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_COUNT");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_ITEM:
+//		PX4_INFO("~~~receive mission");
 		handle_mission_item(msg);
 		break;
 
@@ -911,6 +914,8 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 			_transfer_dataman_id = _dataman_id == 0 ? 1 : 0;	// use inactive storage for transmission
 			_transfer_current_seq = -1;
 
+//			PX4_INFO("_transfer_count %d", (int)_transfer_count );
+
 			if (_mission_type == MAV_MISSION_TYPE_FENCE) {
 				// We're about to write new geofence items, so take the lock. It will be released when
 				// switching back to idle
@@ -999,8 +1004,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 	mavlink_mission_item_t wp;
 	mavlink_msg_mission_item_decode(msg, &wp);
 
-	if (CHECK_SYSID_COMPID_MISSION(wp)) {
-
+	if (CHECK_SYSID_COMPID_MISSION(wp)) { //CHECK_SYSID_COMPID_MISSION(wp)
+//		PX4_INFO("sysid %d, compid %d",mavlink_system.sysid, mavlink_system.compid);
 		if (wp.mission_type != _mission_type) {
 			PX4_WARN("WPM: Unexpected mission type (%u %u)", (int)wp.mission_type, (int)_mission_type);
 			return;
@@ -1029,8 +1034,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 			return;
 		}
 
-		struct mission_item_s mission_item = {};
 
+		struct mission_item_s mission_item = {};
 		int ret = parse_mavlink_mission_item(&wp, &mission_item);
 
 		if (ret != PX4_OK) {
@@ -1050,6 +1055,7 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 		switch (_mission_type) {
 
 		case MAV_MISSION_TYPE_MISSION: {
+
 				// check that we don't get a wrong item (hardening against wrong client implementations, the list here
 				// does not need to be complete)
 				if (mission_item.nav_cmd == MAV_CMD_NAV_FENCE_POLYGON_VERTEX_INCLUSION ||
@@ -1064,11 +1070,14 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 					write_failed = dm_write(dm_item, wp.seq, DM_PERSIST_POWER_ON_RESET, &mission_item,
 								sizeof(struct mission_item_s)) != sizeof(struct mission_item_s);
+					PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
 
 					if (!write_failed) {
 						/* waypoint marked as current */
 						if (wp.current) {
 							_transfer_current_seq = wp.seq;
+//							PX4_INFO("wp.current %d", wp.current);
+
 						}
 					}
 				}
@@ -1123,6 +1132,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 		}
 
 		if (write_failed || check_failed) {
+//			PX4_INFO("check failed");
+
 			if (_verbose) { PX4_ERR("WPM: MISSION_ITEM ERROR: error writing seq %u to dataman ID %i", wp.seq, _transfer_dataman_id); }
 
 			send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_ERROR);
@@ -1145,10 +1156,11 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 		_transfer_seq = wp.seq + 1;
 
+//		PX4_INFO("_transfer_seq %d, _transfer_count %d ", (int)_transfer_seq, (int)_transfer_count); //transfer count is always 0.
 		if (_transfer_seq == _transfer_count) {
 			/* got all new mission items successfully */
 			if (_verbose) { PX4_INFO("WPM: MISSION_ITEM got all %u items, current_seq=%u, changing state to MAVLINK_WPM_STATE_IDLE", _transfer_count, _transfer_current_seq); }
-
+			PX4_INFO("update~~mission");
 			ret = 0;
 
 			switch (_mission_type) {
