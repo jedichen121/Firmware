@@ -391,7 +391,7 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	if (_mavlink->get_hil_enabled() || (_mavlink->get_use_hil_gps() && msg->sysid == mavlink_system.sysid)) {
 		switch (msg->msgid) {
 		case MAVLINK_MSG_ID_HIL_GPS:
-			send_mavlink_hil_gps(msg);
+			// send_mavlink_hil_gps(msg);
 			handle_message_hil_gps(msg);
 			break;
 
@@ -2088,6 +2088,7 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 	} else {
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
 	}
+	send_mavlink_hil_gps(msg);
 }
 
 //void send_mavlink_hil_gps(mavlink_hil_gps_t *gps, int *_fd, struct sockaddr *_send_addr) {
