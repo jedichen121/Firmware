@@ -85,6 +85,7 @@ const unsigned mode_flag_armed = 128; // following MAVLink spec
 const unsigned mode_flag_custom = 1;
 
 hrt_abstime prev_time = 0;
+uint8_t send_switch = 0;
 
 using namespace simulator;
 
@@ -405,9 +406,15 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			_last_sitl_timestamp = curr_sitl_time;
 			_last_sim_timestamp = curr_sim_time;
 
-			mavlink_message_t hil_msg;
-			mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &imu);
-			send_mavlink_hil_sensor(&hil_msg);
+			if (send_switch) {
+				mavlink_message_t hil_msg;
+				mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &imu);
+				send_mavlink_hil_sensor(&hil_msg);
+				send_switch = 0;
+			}
+			else
+				send_switch = 1;
+			
 
 			// correct timestamp
 			imu.time_usec = now;
