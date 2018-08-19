@@ -77,7 +77,6 @@ sockaddr_in _srcaddr;
 sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
-uint32_t max_miss_count;
 #include <simulator/simulator.h>
 
 namespace linux_pwm_out
@@ -289,9 +288,6 @@ void task_main(int argc, char *argv[])
 	_armed.prearmed = false;
 
 	pwm_limit_init(&_pwm_limit);
-
-	max_miss_count = 0;
-	uint32_t miss_count = 0;
 
 	while (!_task_should_exit) {
 
