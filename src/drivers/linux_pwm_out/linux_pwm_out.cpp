@@ -77,7 +77,6 @@ sockaddr_in _srcaddr;
 sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
-uint32_t max_miss_count;
 #include <simulator/simulator.h>
 
 namespace linux_pwm_out
@@ -290,9 +289,6 @@ void task_main(int argc, char *argv[])
 
 	pwm_limit_init(&_pwm_limit);
 
-	max_miss_count = 0;
-	uint32_t miss_count = 0;
-
 	while (!_task_should_exit) {
 
 		bool updated;
@@ -362,20 +358,21 @@ void task_main(int argc, char *argv[])
 
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
+//			PX4_INFO("after mixing: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 
 			// check if there is new output from container
 			orb_check(_dummy_outputs_sub, &updated);
 
-			if (updated) {
+//			if (updated) {
 				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 				for (size_t i = 0; i < 16; i++)
 					_outputs.output[i] = _dummy_outputs.output[i];
-			}
-
+//			}
+//
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
@@ -434,6 +431,8 @@ void task_main(int argc, char *argv[])
 
 			if (_outputs_pub != nullptr) {
 				orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
+//				PX4_INFO("after mixing: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
+
 			} else {
 				_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);
 			}
@@ -569,13 +568,19 @@ void poll_container()
 //								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
 								// for (int j = 0; j < 16; j++)
 								// 	aout.output[j] = ctrl.controls[j];
+
 								convert_to_output(aout, ctrl);
+
+
 //								PX4_INFO("output: %f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
 //								PX4_INFO("timestamp: %f", (double) aout.timestamp);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
+//								ctrl.timestamp = timestamp;
 								int dummy_multi;
 								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
+//								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &ctrl, &dummy_multi, ORB_PRIO_MAX - 1);
+
 							}
 						}
 						else if (msg.msgid != 0) {

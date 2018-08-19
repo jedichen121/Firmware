@@ -91,14 +91,13 @@
 #include "mavlink_main.h"
 #include "mavlink_command_sender.h"
 
-#include "mavlink_send_hil_gps.h"
+
 
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
-static sockaddr_in _send_addr;
-static int _fd;
-//static socklen_t _addrlen = sizeof(_send_addr);
-#define SEND_PORT 	14660
-//static mavlink_hil_gps_t _hil_gps_msg;
+
+static int _fd_mavrec;
+sockaddr_in _send_addr_mavrec;
+#define SEND_PORT 	14556//14556
 
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
@@ -171,6 +170,17 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_p_bat_crit_thr(param_find("BAT_CRIT_THR")),
 	_p_bat_low_thr(param_find("BAT_LOW_THR"))
 {
+		// try to setup udp socket for communcation with simulator
+				memset((char *) &_send_addr_mavrec, 0, sizeof(_send_addr_mavrec));
+				_send_addr_mavrec.sin_family = AF_INET;
+				_send_addr_mavrec.sin_addr.s_addr =  inet_addr("172.17.0.1"); //htonl(INADDR_ANY);
+				_send_addr_mavrec.sin_port = htons(SEND_PORT);
+
+
+				if ((_fd_mavrec = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+					PX4_WARN("create socket failed");
+		//			return 0;
+				}
 }
 
 MavlinkReceiver::~MavlinkReceiver()
@@ -209,9 +219,13 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		}
 	}
 
+//	PX4_INFO("~~~~~receiving messages,msgid %d ", msg->msgid);
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_COMMAND_LONG:
+		PX4_INFO("receiving messages,MAVLINK_MSG_ID_COMMAND_LONG ");
 		if (_mavlink->accepting_commands()) {
+			PX4_INFO("accepting handle ");
+
 			handle_message_command_long(msg);
 		}
 
@@ -281,10 +295,12 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_MANUAL_CONTROL:
 		handle_message_manual_control(msg);
+//		PX4_INFO("~~~!!!@@@RECEIVE manual");
 		break;
 
 	case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
 		handle_message_rc_channels_override(msg);
+//		PX4_INFO("~~~!!!@@@RECEIVE INPUT RC override");
 		break;
 
 	case MAVLINK_MSG_ID_HEARTBEAT:
@@ -453,9 +469,12 @@ MavlinkReceiver::send_flight_information()
 void
 MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 {
+
 	/* command */
 	mavlink_command_long_t cmd_mavlink;
 	mavlink_msg_command_long_decode(msg, &cmd_mavlink);
+
+
 
 	bool target_ok = evaluate_target_ok(cmd_mavlink.command, cmd_mavlink.target_system, cmd_mavlink.target_component);
 
@@ -467,6 +486,13 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 		acknowledge(msg->sysid, msg->compid, cmd_mavlink.command, ret);
 		return;
 	}
+
+
+
+
+
+
+//PX4_INFO("CMD.COMMAND %d",cmd_mavlink.command );
 
 	if (cmd_mavlink.command == MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES) {
 		/* send autopilot version message */
@@ -533,6 +559,22 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 		} else {
 			orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
+			PX4_INFO("command id=%d ",vcmd.command);
+			if (vcmd.command==400  )
+			{	cmd_mavlink.target_system = 1;
+			cmd_mavlink.target_component = 1;
+			mavlink_message_t message;
+			mavlink_msg_command_long_encode_chan(1, 200, MAVLINK_COMM_0, &message,
+					&cmd_mavlink);
+			//send_mavlink_message(&msg);
+			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+			int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
+				ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
+									(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
+							if (len <= 0) {
+								PX4_INFO("Failed sending mavlink message\n");
+							}
+			}
 		}
 	}
 
@@ -625,6 +667,7 @@ MavlinkReceiver::handle_message_command_int(mavlink_message_t *msg)
 
 		} else {
 			orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
+			PX4_INFO("COMMAND INT");
 		}
 	}
 
@@ -783,8 +826,22 @@ MavlinkReceiver::handle_message_hil_optical_flow(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 {
+	PX4_INFO("seting new mode");
 	mavlink_set_mode_t new_mode;
 	mavlink_msg_set_mode_decode(msg, &new_mode);
+//	new_mode.target_system = 1;
+//	new_mode.target_component = 1;
+	mavlink_message_t message;
+	mavlink_msg_set_mode_encode_chan(1, 200, MAVLINK_COMM_0, &message,
+			&new_mode);
+	//send_mavlink_message(&msg);
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
+	ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
+			(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
 
 	union px4_custom_mode custom_mode;
 	custom_mode.data = new_mode.custom_mode;
@@ -810,9 +867,12 @@ MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 
 	if (_cmd_pub == nullptr) {
 		_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), &vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);
+//		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
 
 	} else {
 		orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
+//		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
+
 	}
 }
 
@@ -1118,6 +1178,7 @@ MavlinkReceiver::handle_message_set_actuator_control_target(mavlink_message_t *m
 
 		if (updated) {
 			orb_copy(ORB_ID(vehicle_control_mode), _control_mode_sub, &_control_mode);
+			PX4_INFO("~~~~~~~PUBLISH VEHICLE CONTROL MODE");
 		}
 
 		if (_control_mode.flag_control_offboard_enabled) {
@@ -1624,6 +1685,7 @@ MavlinkReceiver::handle_message_rc_channels_override(mavlink_message_t *msg)
 
 	} else {
 		orb_publish(ORB_ID(input_rc), _rc_pub, &rc);
+//		PX4_INFO("~~~!!!@@@RECEIVE INPUT RC");
 	}
 }
 
@@ -1681,10 +1743,11 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 			_rc_pub = orb_advertise(ORB_ID(input_rc), &rc);
 		} else {
 			orb_publish(ORB_ID(input_rc), _rc_pub, &rc);
+//			PX4_INFO("2~~~!!!@@@RECEIVE INPUT RC");
 		}
 
 	} else {
-		struct manual_control_setpoint_s manual = {};
+		struct manual_control_setpoint_s manual = { };
 
 		manual.timestamp = hrt_absolute_time();
 		manual.x = man.x / 1000.0f;
@@ -1706,20 +1769,34 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 		// convery mavlink message to raw data
 		// try to setup udp socket for communcation with simulator
 
-		
-		// //static unsigned char _buf[1024];
-		// static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
-		// // convery mavlink message to raw data
-		// uint16_t bufLen = 0;
-		// bufLen = mavlink_msg_to_send_buffer(buf, msg);
-
-		// // send data
-		// ssize_t send_len = sendto(_fd, buf, bufLen, 0,
-		// 		(struct sockaddr *) &_send_addr, _addrlen);
-		// if (send_len <= 0) {
-		// 	PX4_WARN("*****Failed sending mavlink message*");
-		// }
-		/* end */
+//		sockaddr_in _con_send_addr;
+//		static int _fd;
+//		//static unsigned char _buf[1024];
+//		static unsigned char buf[MAVLINK_MAX_PACKET_LEN];
+//		// convery mavlink message to raw data
+//		uint16_t bufLen = 0;
+//		bufLen = mavlink_msg_to_send_buffer(buf, msg);
+//
+//
+//		memset((char *) &_con_send_addr, 0, sizeof(_con_send_addr));
+//		_con_send_addr.sin_family = AF_INET;
+//		_con_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//		_con_send_addr.sin_port = htons(14656);
+//
+//		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+//			PX4_WARN("create socket failed\n");
+//			return;
+//		}
+//
+//		static socklen_t _addrlen = sizeof(_con_send_addr);
+//			// send data
+//			ssize_t send_len = sendto(_fd, buf, bufLen, 0,
+//					(struct sockaddr *) &_con_send_addr, _addrlen);
+//			if (send_len <= 0) {
+//				PX4_WARN("*****Failed sending mavlink message*");
+//			}
+//			/* end */
+//
 	}
 }
 
@@ -2088,32 +2165,6 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
 	}
 }
-
-//void send_mavlink_hil_gps(mavlink_hil_gps_t *gps, int *_fd, struct sockaddr *_send_addr) {
-//
-//	mavlink_message_t hil_msg;
-//	mavlink_msg_hil_gps_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, gps);
-//	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-//	int packetlen = mavlink_msg_to_send_buffer(buffer, hil_msg);
-
-//	ssize_t len = sendto(*_fd, buffer, packetlen, 0, (struct sockaddr *) _send_addr, sizeof(*_send_addr));
-//	if (len <= 0) {
-//		PX4_INFO("Failed sending mavlink message\n");
-//	}
-//}
-
-//void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *hil_msg) {
-//	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-//	int packetlen = mavlink_msg_to_send_buffer(buffer, hil_msg);
-//
-//	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
-//	if (len <= 0) {
-//		PX4_INFO("Failed sending mavlink message\n");
-//	}
-//
-//}
-
-
 
 void MavlinkReceiver::handle_message_follow_target(mavlink_message_t *msg)
 {
@@ -2501,17 +2552,6 @@ MavlinkReceiver::receive_thread(void *arg)
 	bool verbose = _mavlink->get_verbose();
 	_mission_manager.set_verbose(verbose);
 
-
-	memset((char *) &_send_addr, 0, sizeof(_send_addr));
-	_send_addr.sin_family = AF_INET;
-	_send_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	_send_addr.sin_port = htons(SEND_PORT);
-
-	if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		PX4_WARN("create socket failed\n");
-		return nullptr;
-	}
-
 	while (!_mavlink->_task_should_exit) {
 		if (poll(&fds[0], 1, timeout) > 0) {
 			if (_mavlink->get_protocol() == SERIAL) {
@@ -2578,6 +2618,7 @@ MavlinkReceiver::receive_thread(void *arg)
 						handle_message(&msg);
 
 						/* handle packet with mission manager */
+
 						_mission_manager.handle_message(&msg);
 
 						/* handle packet with parameter component */
@@ -2593,6 +2634,7 @@ MavlinkReceiver::receive_thread(void *arg)
 
 						/* handle packet with parent object */
 						_mavlink->handle_message(&msg);
+
 					}
 				}
 

@@ -67,7 +67,7 @@ uint16_t MavlinkMissionManager::_geofence_update_counter = 0;
 //void MavlinkMissionManager::send_mavlink_message(const mavlink_message_t *message);
 
 static int _fd;
-sockaddr_in _send_addr;
+sockaddr_in _send_addr_wp;
 #define SEND_PORT 	14556
 
 #define CHECK_SYSID_COMPID_MISSION(_msg)		(_msg.target_system == mavlink_system.sysid && \
@@ -106,10 +106,10 @@ MavlinkMissionManager::MavlinkMissionManager(Mavlink *mavlink) :
 	init_offboard_mission();
 
 	// try to setup udp socket for communcation with simulator
-		memset((char *) &_send_addr, 0, sizeof(_send_addr));
-		_send_addr.sin_family = AF_INET;
-		_send_addr.sin_addr.s_addr =  inet_addr("172.17.0.1"); //htonl(INADDR_ANY);
-		_send_addr.sin_port = htons(SEND_PORT);
+		memset((char *) &_send_addr_wp, 0, sizeof(_send_addr_wp));
+		_send_addr_wp.sin_family = AF_INET;
+		_send_addr_wp.sin_addr.s_addr =  inet_addr("172.17.0.1"); //htonl(INADDR_ANY);
+		_send_addr_wp.sin_port = htons(SEND_PORT);
 
 
 		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -648,7 +648,7 @@ MavlinkMissionManager::handle_message(const mavlink_message_t *msg)
 //
 ////	PX4_INFO("SENDING GPS MESSAGES");
 //
-//	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+//	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr_wp, sizeof(_send_addr_wp));
 //	if (len <= 0) {
 //		PX4_INFO("Failed sending mavlink message\n");
 //	}
@@ -913,7 +913,7 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 						uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 						int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
 						ssize_t len = sendto(_fd, buffer, packetlen, 0,
-								(struct sockaddr *) &_send_addr, sizeof(_send_addr));
+								(struct sockaddr *) &_send_addr_wp, sizeof(_send_addr_wp));
 						if (len <= 0) {
 							PX4_INFO("Failed sending mavlink message\n");
 						}
@@ -976,7 +976,7 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 //			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 //			int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
 //			ssize_t len = sendto(_fd, buffer, packetlen, 0,
-//					(struct sockaddr *) &_send_addr, sizeof(_send_addr));
+//					(struct sockaddr *) &_send_addr_wp, sizeof(_send_addr_wp));
 //			if (len <= 0) {
 //				PX4_INFO("Failed sending mavlink message\n");
 //			}
@@ -1149,7 +1149,9 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 						sizeof(struct mission_item_s))
 						!= sizeof(struct mission_item_s);
 
-				PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
+//				PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
+				PX4_INFO("store waypoint , nav_cmd %d, lat %f, lon %f", mission_item.nav_cmd, (double)mission_item.lat, (double)mission_item.lon);
+
 				if (!write_failed) {
 					/* waypoint marked as current */
 					/*sending waypoint mavlink meaasge to container decode, encode, and @zhiwei*/
@@ -1179,8 +1181,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 					int packetlen = mavlink_msg_to_send_buffer(buffer,
 							&message);
 					ssize_t len = sendto(_fd, buffer, packetlen, 0,
-							(struct sockaddr *) &_send_addr,
-							sizeof(_send_addr));
+							(struct sockaddr *) &_send_addr_wp,
+							sizeof(_send_addr_wp));
 					if (len <= 0) {
 						PX4_INFO("Failed sending mavlink message\n");
 					}
