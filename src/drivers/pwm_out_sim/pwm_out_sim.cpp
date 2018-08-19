@@ -478,6 +478,8 @@ PWMSim::task_main()
 			}
 			//set the same with host rover @zivy
 //			PX4_INFO("num_output %d", num_outputs);
+//			PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
+
 			/* do mixing */
 			num_outputs = _mixers->mix(&outputs.output[0], num_outputs);
 //			PX4_INFO("num_output %d", num_outputs);

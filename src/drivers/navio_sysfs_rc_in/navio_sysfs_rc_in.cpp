@@ -208,6 +208,8 @@ void RcInput::_measure(void)
 	_data.input_source = input_rc_s::RC_INPUT_SOURCE_PX4IO_PPM;
 
 	orb_publish(ORB_ID(input_rc), _rcinput_pub, &_data);
+		PX4_INFO("input rc %f, %f, %f, %f", (double)_data.values[0], (double)_data.values[1], (double)_data.values[2], (double)_data.values[3]);
+
 }
 
 /**

@@ -305,6 +305,7 @@ void task_main(int argc, char *argv[])
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
 				_outputs.output[i] = NAN;
 			}
+			 PX4_INFO("after %f %f %f %f", (double)_outputs.output[0],(double)_outputs.output[1],(double)_outputs.output[2],(double)_outputs.output[3]);
 
 			const uint16_t reverse_mask = 0;
 			uint16_t disarmed_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
@@ -357,6 +358,7 @@ void task_main(int argc, char *argv[])
 
 			if (_outputs_pub != nullptr) {
 				orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
+				PX4_INFO("output %f, %f, %f, %f", (double)_outputs.output[0],(double)_outputs.output[1],(double)_outputs.output[2],(double)_outputs.output[3]);
 
 			} else {
 				_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);

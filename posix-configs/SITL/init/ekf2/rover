@@ -66,19 +66,19 @@ ekf2 start
 gnd_pos_control start
 gnd_att_control start
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/Rover_wReverse.main.mix
-#ROMFS/sitl/mixers/rover_sitl.main.mix
-#mavlink start -x -u 14556 -r 4000000
-#mavlink start -x -u 14557 -r 4000000 -m onboard -o 14540
-#mavlink stream -r 80 -s POSITION_TARGET_LOCAL_NED -u 14556
-#mavlink stream -r 80 -s LOCAL_POSITION_NED -u 14556
-#mavlink stream -r 80 -s GLOBAL_POSITION_INT -u 14556
-#mavlink stream -r 80 -s ATTITUDE -u 14556
-#mavlink stream -r 80 -s ATTITUDE_QUATERNION -u 14556
-#mavlink stream -r 80 -s ATTITUDE_TARGET -u 14556
-#mavlink stream -r 50 -s SERVO_OUTPUT_RAW_0 -u 14556
-#mavlink stream -r 20 -s RC_CHANNELS -u 14556
-#mavlink stream -r 250 -s HIGHRES_IMU -u 14556
-#mavlink stream -r 10 -s OPTICAL_FLOW_RAD -u 14556
-sdlog2 start -r 200 -e -t -a
+ mavlink start -x -u 14556 -r 4000000
+ mavlink start -x -u 14557 -r 4000000 -m onboard -o 14540
+ mavlink stream -r 50 -s POSITION_TARGET_LOCAL_NED -u 14556
+ mavlink stream -r 50 -s LOCAL_POSITION_NED -u 14556
+ mavlink stream -r 50 -s GLOBAL_POSITION_INT -u 14556
+ mavlink stream -r 50 -s ATTITUDE -u 14556
+ mavlink stream -r 50 -s ATTITUDE_QUATERNION -u 14556
+ mavlink stream -r 50 -s ATTITUDE_TARGET -u 14556
+ mavlink stream -r 50 -s SERVO_OUTPUT_RAW_0 -u 14556
+ mavlink stream -r 20 -s RC_CHANNELS -u 14556
+ mavlink stream -r 250 -s HIGHRES_IMU -u 14556
+ mavlink stream -r 10 -s OPTICAL_FLOW_RAD -u 14556
+#sdlog2 start -r 200 -e -t -a
+logger start -e -t
 mavlink boot_complete
 replay trystart

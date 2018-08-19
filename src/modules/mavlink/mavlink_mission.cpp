@@ -1070,12 +1070,13 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 
 					write_failed = dm_write(dm_item, wp.seq, DM_PERSIST_POWER_ON_RESET, &mission_item,
 								sizeof(struct mission_item_s)) != sizeof(struct mission_item_s);
-					PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
+			//		PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
+
+				PX4_INFO("store waypoint , nav_cmd %d, lat %f, lon %f", mission_item.nav_cmd, (double)mission_item.lat, (double)mission_item.lon);
 
 					if (!write_failed) {
 						/* waypoint marked as current */
-						if (wp.current) {
-							_transfer_current_seq = wp.seq;
+						if (wp.current) {							_transfer_current_seq = wp.seq;
 //							PX4_INFO("wp.current %d", wp.current);
 
 						}

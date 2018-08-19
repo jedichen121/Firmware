@@ -2474,7 +2474,7 @@ int commander_thread_main(int argc, char *argv[])
 					status_flags.gps_failure = false;
 					status_changed = true;
 					if (status_flags.condition_home_position_valid) {
-						mavlink_log_critical(&mavlink_log_pub, "GPS fix regained");
+						//mavlink_log_critical(&mavlink_log_pub, "GPS fix regained");
 					}
 				}
 

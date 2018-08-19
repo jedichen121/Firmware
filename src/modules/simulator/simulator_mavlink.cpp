@@ -93,14 +93,15 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 	bool armed = (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
 
 	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
-
+//	PX4_INFO("system type: %d",_system_type);
 	/* scale outputs depending on system type */
 	if (_system_type == MAV_TYPE_QUADROTOR ||
 	    _system_type == MAV_TYPE_HEXAROTOR ||
 	    _system_type == MAV_TYPE_OCTOROTOR ||
 	    _system_type == MAV_TYPE_VTOL_DUOROTOR ||
 	    _system_type == MAV_TYPE_VTOL_QUADROTOR ||
-	    _system_type == MAV_TYPE_VTOL_RESERVED2) {
+	    _system_type == MAV_TYPE_VTOL_RESERVED2 ||
+		 _system_type == MAV_TYPE_GROUND_ROVER) {
 
 		/* multirotors: set number of rotor outputs depending on type */
 
@@ -123,6 +124,9 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 			n = 4;
 			break;
 
+		case MAV_TYPE_GROUND_ROVER:
+				n = 4;
+				break;
 		case MAV_TYPE_VTOL_RESERVED2:
 			// this is the standard VTOL / quad plane with 5 propellers
 			n = 5;
@@ -135,13 +139,16 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
+//				PX4_INFO("system type: %d, actuators control %f %f %f %f",_system_type, (double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
+
 				if (i < n) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to 0..1 for rotors */
 					msg.controls[i] = (_actuators[index].output[i] - PWM_DEFAULT_MIN) / (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN);
-
+//					msg.controls[i] = _actuators[index].output[i];
 				} else {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for other channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);
+//					msg.controls[i] = _actuators[index].output[i];
 				}
 
 			} else {
@@ -155,6 +162,8 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
+				PX4_INFO("system type: %d, actuators control %f %f %f %f",_system_type, (double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
+
 				if (i != 4) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for normal channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);
@@ -183,7 +192,7 @@ void Simulator::send_controls()
 		if (_actuator_outputs_sub[i] < 0 || _actuators[i].timestamp == 0) {
 			continue;
 		}
-		
+
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
 //		PX4_INFO("%f %f %f %f", (double) msg.controls[0], (double) msg.controls[1], (double) msg.controls[2], (double) msg.controls[3]);
@@ -602,6 +611,7 @@ void Simulator::poll_topics()
 
 		if (updated) {
 			orb_copy(ORB_ID(actuator_outputs), _actuator_outputs_sub[i], &_actuators[i]);
+//			PX4_INFO("actuators control %f %f %f %f",(double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
 		}
 	}
 
