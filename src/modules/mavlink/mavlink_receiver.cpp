@@ -91,13 +91,13 @@
 #include "mavlink_main.h"
 #include "mavlink_command_sender.h"
 
-#include "mavlink_send_hil_gps.h"
+// #include "mavlink_send_hil_gps.h"
 
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 static sockaddr_in _send_addr;
 static int _fd;
 //static socklen_t _addrlen = sizeof(_send_addr);
-#define SEND_PORT 	14660
+#define SEND_PORT 	45455
 //static mavlink_hil_gps_t _hil_gps_msg;
 
 
@@ -391,6 +391,7 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	if (_mavlink->get_hil_enabled() || (_mavlink->get_use_hil_gps() && msg->sysid == mavlink_system.sysid)) {
 		switch (msg->msgid) {
 		case MAVLINK_MSG_ID_HIL_GPS:
+			// send_mavlink_hil_gps(msg);
 			handle_message_hil_gps(msg);
 			break;
 
@@ -2087,6 +2088,7 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 	} else {
 		orb_publish(ORB_ID(vehicle_gps_position), _gps_pub, &hil_gps);
 	}
+	send_mavlink_hil_gps(msg);
 }
 
 //void send_mavlink_hil_gps(mavlink_hil_gps_t *gps, int *_fd, struct sockaddr *_send_addr) {
@@ -2102,16 +2104,15 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 //	}
 //}
 
-//void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *hil_msg) {
-//	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-//	int packetlen = mavlink_msg_to_send_buffer(buffer, hil_msg);
-//
-//	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
-//	if (len <= 0) {
-//		PX4_INFO("Failed sending mavlink message\n");
-//	}
-//
-//}
+void MavlinkReceiver::send_mavlink_hil_gps(const mavlink_message_t *hil_msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, hil_msg);
+//	PX4_INFO("sending gps data\n");
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+}
 
 
 
