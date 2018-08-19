@@ -53,8 +53,7 @@
 #include <navigator/navigation.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
-//#include "../mavlink/v1.0/common/mavlink.h"
- #include <arpa/inet.h>
+
 int MavlinkMissionManager::_dataman_id = 0;
 bool MavlinkMissionManager::_dataman_init = false;
 unsigned MavlinkMissionManager::_count[3] = { 0, 0, 0 };
@@ -63,12 +62,6 @@ int MavlinkMissionManager::_last_reached = -1;
 bool MavlinkMissionManager::_transfer_in_progress = false;
 constexpr unsigned MavlinkMissionManager::MAX_COUNT[];
 uint16_t MavlinkMissionManager::_geofence_update_counter = 0;
-
-//void MavlinkMissionManager::send_mavlink_message(const mavlink_message_t *message);
-
-static int _fd;
-sockaddr_in _send_addr;
-#define SEND_PORT 	14556
 
 #define CHECK_SYSID_COMPID_MISSION(_msg)		(_msg.target_system == mavlink_system.sysid && \
 		((_msg.target_component == mavlink_system.compid) || \
@@ -104,18 +97,6 @@ MavlinkMissionManager::MavlinkMissionManager(Mavlink *mavlink) :
 	_mission_result_sub = orb_subscribe(ORB_ID(mission_result));
 
 	init_offboard_mission();
-
-	// try to setup udp socket for communcation with simulator
-		memset((char *) &_send_addr, 0, sizeof(_send_addr));
-		_send_addr.sin_family = AF_INET;
-		_send_addr.sin_addr.s_addr =  inet_addr("172.17.0.1"); //htonl(INADDR_ANY);
-		_send_addr.sin_port = htons(SEND_PORT);
-
-
-		if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-			PX4_WARN("create socket failed");
-//			return 0;
-		}
 }
 
 MavlinkMissionManager::~MavlinkMissionManager()
@@ -207,7 +188,6 @@ MavlinkMissionManager::update_active_mission(int dataman_id, unsigned count, int
 
 		} else {
 			orb_publish(ORB_ID(offboard_mission), _offboard_mission_pub, &mission);
-			PX4_INFO("publish offboard mission");
 		}
 
 		return PX4_OK;
@@ -591,72 +571,44 @@ MavlinkMissionManager::handle_message(const mavlink_message_t *msg)
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_MISSION_ACK:
 		handle_mission_ack(msg);
-		PX4_INFO("handle mission ack");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_SET_CURRENT:
 		handle_mission_set_current(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_SET_CURRENT");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
 		handle_mission_request_list(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_REQUEST_LIST");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_REQUEST:
 		handle_mission_request(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_REQUEST");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_REQUEST_INT:
 		handle_mission_request_int(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_REQUEST_INT");
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_COUNT:
 		handle_mission_count(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_COUNT");
 		break;
 
+	case MAVLINK_MSG_ID_MISSION_ITEM:
+		handle_mission_item(msg);
+		break;
 
 	case MAVLINK_MSG_ID_MISSION_ITEM_INT:
-//		PX4_INFO("~~~~~~~handle mission item");
 		handle_mission_item_int(msg);
 		break;
 
 	case MAVLINK_MSG_ID_MISSION_CLEAR_ALL:
 		handle_mission_clear_all(msg);
-		PX4_INFO("handle MAVLINK_MSG_ID_MISSION_CLEAR_ALL");
 		break;
-	case MAVLINK_MSG_ID_MISSION_ITEM:
-//		PX4_INFO("handle mission item");
-		handle_mission_item(msg);
-		break;
+
 	default:
 		break;
 	}
 }
-
-
-//void MavlinkMissionManager::send_mavlink_message(const mavlink_message_t *message) {
-//
-//
-//
-//	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-//	int packetlen = mavlink_msg_to_send_buffer(buffer, message);
-//
-////	PX4_INFO("SENDING GPS MESSAGES");
-//
-//	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_send_addr, sizeof(_send_addr));
-//	if (len <= 0) {
-//		PX4_INFO("Failed sending mavlink message\n");
-//	}
-////	for (int i = 0; i < len; i++) {
-////		printf("%i ", buffer[i]);
-////	}printf("\n");
-//
-//}
 
 
 void
@@ -902,22 +854,7 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 	mavlink_mission_count_t wpc;
 	mavlink_msg_mission_count_decode(msg, &wpc);
 
-
 	if (CHECK_SYSID_COMPID_MISSION(wpc)) {
-
-		wpc.target_system = 1;
-						wpc.target_component = 1;
-						mavlink_message_t message;
-						mavlink_msg_mission_count_encode_chan(1, 200, MAVLINK_COMM_0, &message, &wpc);
-						//send_mavlink_message(&msg);
-						uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-						int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
-						ssize_t len = sendto(_fd, buffer, packetlen, 0,
-								(struct sockaddr *) &_send_addr, sizeof(_send_addr));
-						if (len <= 0) {
-							PX4_INFO("Failed sending mavlink message\n");
-						}
-
 		if (_state == MAVLINK_WPM_STATE_IDLE) {
 			_time_last_recv = hrt_absolute_time();
 
@@ -966,22 +903,6 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 
 			if (_verbose) { PX4_INFO("WPM: MISSION_COUNT %u from ID %u, changing state to MAVLINK_WPM_STATE_GETLIST", wpc.count, msg->sysid); }
 
-
-//			PX4_INFO("send mavlink: count");
-//			wpc.target_system = 1;
-//			wpc.target_component = 1;
-//			mavlink_message_t message;
-//			mavlink_msg_mission_count_encode_chan(1, 200, MAVLINK_COMM_0, &message, &wpc);
-//			//send_mavlink_message(&msg);
-//			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-//			int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
-//			ssize_t len = sendto(_fd, buffer, packetlen, 0,
-//					(struct sockaddr *) &_send_addr, sizeof(_send_addr));
-//			if (len <= 0) {
-//				PX4_INFO("Failed sending mavlink message\n");
-//			}
-
-
 			_state = MAVLINK_WPM_STATE_GETLIST;
 			_transfer_seq = 0;
 			_transfer_partner_sysid = msg->sysid;
@@ -989,7 +910,7 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 			_transfer_count = wpc.count;
 			_transfer_dataman_id = _dataman_id == 0 ? 1 : 0;	// use inactive storage for transmission
 			_transfer_current_seq = -1;
-//			PX4_INFO("_transfer_count %d", (int)_transfer_count );
+
 			if (_mission_type == MAV_MISSION_TYPE_FENCE) {
 				// We're about to write new geofence items, so take the lock. It will be released when
 				// switching back to idle
@@ -1085,10 +1006,8 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 			return;
 		}
 
-//		PX4_INFO("STATE=%d", (int)_state);
 		if (_state == MAVLINK_WPM_STATE_GETLIST) {
 			_time_last_recv = hrt_absolute_time();
-
 
 			if (wp.seq != _transfer_seq) {
 				if (_verbose) { PX4_ERR("WPM: MISSION_ITEM ERROR: seq %u was not the expected %u", wp.seq, _transfer_seq); }
@@ -1109,11 +1028,11 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 			_mavlink->send_statustext_critical("IGN MISSION_ITEM: Busy");
 			return;
 		}
+
 		struct mission_item_s mission_item = {};
 
-//		PX4_INFO("~~mission");
 		int ret = parse_mavlink_mission_item(&wp, &mission_item);
-//		PX4_INFO("~~mission, ret=%d, %d", ret, PX4_OK);//PX4_OK=0
+
 		if (ret != PX4_OK) {
 			if (_verbose) { PX4_ERR("WPM: MISSION_ITEM ERROR: seq %u invalid item", wp.seq); }
 
@@ -1141,52 +1060,15 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 					check_failed = true;
 
 				} else {
-				dm_item_t dm_item = DM_KEY_WAYPOINTS_OFFBOARD(
-						_transfer_dataman_id);
+					dm_item_t dm_item = DM_KEY_WAYPOINTS_OFFBOARD(_transfer_dataman_id);
 
-				write_failed = dm_write(dm_item, wp.seq,
-						DM_PERSIST_POWER_ON_RESET, &mission_item,
-						sizeof(struct mission_item_s))
-						!= sizeof(struct mission_item_s);
+					write_failed = dm_write(dm_item, wp.seq, DM_PERSIST_POWER_ON_RESET, &mission_item,
+								sizeof(struct mission_item_s)) != sizeof(struct mission_item_s);
 
-				PX4_INFO("store waypoint 1, write_failed=%d", write_failed);
-				if (!write_failed) {
-					/* waypoint marked as current */
-					/*sending waypoint mavlink meaasge to container decode, encode, and @zhiwei*/
-//					PX4_INFO("SENDING WP");
-//					mavlink_mission_item_t mission_item_msg_;
-//					mission_item_msg_.target_system=1;
-//					mission_item_msg_.target_component=1;
-//					mission_item_msg_.seq=wp.seq;
-//					mission_item_msg_.frame=wp.frame;
-//					mission_item_msg_.command=wp.command;
-//					mission_item_msg_.current=wp.current;
-//					mission_item_msg_.autocontinue=wp.autocontinue;
-//					mission_item_msg_.param1=wp.param1;
-//					mission_item_msg_.param2=wp.param2;
-//					mission_item_msg_.param3=wp.param3;
-//					mission_item_msg_.param4=wp.param4;
-//					mission_item_msg_.x=wp.x;
-//					mission_item_msg_.y=wp.y;
-//					mission_item_msg_.z=wp.z;
-					wp.target_system=1;
-					wp.target_component=1;
-					mavlink_message_t message;
-					mavlink_msg_mission_item_encode_chan(1, 200, MAVLINK_COMM_0,
-							&message, &wp);
-					//		send_mavlink_message(&msg);
-					uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-					int packetlen = mavlink_msg_to_send_buffer(buffer,
-							&message);
-					ssize_t len = sendto(_fd, buffer, packetlen, 0,
-							(struct sockaddr *) &_send_addr,
-							sizeof(_send_addr));
-					if (len <= 0) {
-						PX4_INFO("Failed sending mavlink message\n");
-					}
-					if (wp.current) {
+					if (!write_failed) {
+						/* waypoint marked as current */
+						if (wp.current) {
 							_transfer_current_seq = wp.seq;
-//							PX4_INFO("wp.current %d", wp.current);
 						}
 					}
 				}
@@ -1262,10 +1144,9 @@ MavlinkMissionManager::handle_mission_item_both(const mavlink_message_t *msg)
 		if (_verbose) { PX4_INFO("WPM: MISSION_ITEM seq %u received", wp.seq); }
 
 		_transfer_seq = wp.seq + 1;
-//		PX4_INFO("_transfer_seq %d, _transfer_count %d ", (int)_transfer_seq, (int)_transfer_count);
+
 		if (_transfer_seq == _transfer_count) {
 			/* got all new mission items successfully */
-			PX4_INFO("update~~mission");
 			if (_verbose) { PX4_INFO("WPM: MISSION_ITEM got all %u items, current_seq=%u, changing state to MAVLINK_WPM_STATE_IDLE", _transfer_count, _transfer_current_seq); }
 
 			ret = 0;
@@ -1414,7 +1295,6 @@ MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *
 
 		switch (mavlink_mission_item->command) {
 		case MAV_CMD_NAV_WAYPOINT:
-//			PX4_INFO("~~~MAV_CMD_NAV_WAYPOINT");
 			mission_item->nav_cmd = NAV_CMD_WAYPOINT;
 			mission_item->time_inside = mavlink_mission_item->param1;
 			mission_item->acceptance_radius = mavlink_mission_item->param2;
