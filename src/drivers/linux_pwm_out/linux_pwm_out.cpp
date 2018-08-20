@@ -271,9 +271,6 @@ void task_main(int argc, char *argv[])
 		}
 	}
 
-	for (size_t i = 0; i < _dummy_outputs.NUM_ACTUATOR_OUTPUTS; i++)
-		PX4_INFO("output[%d]: %f", i, (double)_dummy_outputs.output[i]);
-
 	// create a thread for getting data from container
 	pthread_t poll_container_thread;
 
@@ -303,8 +300,7 @@ void task_main(int argc, char *argv[])
 	_armed.prearmed = false;
 
 	pwm_limit_init(&_pwm_limit);
-	for (size_t i = 0; i < 16; i++)
-		PX4_INFO("output[%d]: %f", i, (double)_outputs.output[i]);
+
 	while (!_task_should_exit) {
 
 		bool updated;
@@ -375,26 +371,24 @@ void task_main(int argc, char *argv[])
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
 
-
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
 
-			updated = 0;
+			updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
-				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
+				// PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 				pthread_mutex_lock(&_pwm_mutex);
-				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
+				// PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
 				pthread_mutex_unlock(&_pwm_mutex);
 
 //				for (size_t i = 0; i < 16; i++)
 //					_outputs.output[i] = _dummy_outputs.output[i];
-				PX4_INFO("final: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
+				// PX4_INFO("final: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 			}
-
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
