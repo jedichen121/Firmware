@@ -261,10 +261,18 @@ void task_main(int argc, char *argv[])
 
 	_mixer_group->groups_required(_groups_required);
 
-	//initialize _dummy_outputs to -1
-	for (size_t i = 0; i < 16; i++)
-		_dummy_outputs.output[i] = -1.0;
+	//initialize _dummy_outputs
+	if (_mixer_group != nullptr) {
+		_dummy_outputs.noutputs = _mixer_group->mix(_dummy_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
 
+		/* disable unused ports by setting their output to NaN */
+		for (size_t i = _dummy_outputs.noutputs; i < _dummy_outputs.NUM_ACTUATOR_OUTPUTS; i++) {
+			_dummy_outputs.output[i] = NAN;
+		}
+	}
+
+	for (size_t i = 0; i < _dummy_outputs.NUM_ACTUATOR_OUTPUTS; i++)
+		PX4_INFO("output[%d]: %f", i, (double)_dummy_outputs.output[i]);
 
 	// create a thread for getting data from container
 	pthread_t poll_container_thread;
@@ -370,9 +378,6 @@ void task_main(int argc, char *argv[])
 
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
-
-			for (size_t i = 0; i < 16; i++)
-				PX4_INFO("output[%d]: %f", i, (double) _outputs.output[i]);
 
 			updated = 0;
 			if (updated) {
