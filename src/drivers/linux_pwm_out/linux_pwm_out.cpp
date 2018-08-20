@@ -295,7 +295,8 @@ void task_main(int argc, char *argv[])
 	_armed.prearmed = false;
 
 	pwm_limit_init(&_pwm_limit);
-
+	for (size_t i = 0; i < 16; i++)
+		PX4_INFO("output[%d]: %f", i, (double)_outputs.output[i]);
 	while (!_task_should_exit) {
 
 		bool updated;
@@ -371,9 +372,9 @@ void task_main(int argc, char *argv[])
 			// orb_check(_dummy_outputs_sub, &updated);
 
 			for (size_t i = 0; i < 16; i++)
-				PX4_INFO("output[%d]: %f", i, _outputs.output[i]);
+				PX4_INFO("output[%d]: %f", i, (double) _outputs.output[i]);
 
-			updated = 1;
+			updated = 0;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
