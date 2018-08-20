@@ -370,9 +370,9 @@ void task_main(int argc, char *argv[])
 				orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
-				// memcpy(_outputs.output[0], _dummy_outputs.output[0], 16*sizeof(float));
-				for (size_t i = 0; i < 16; i++)
-					_outputs.output[i] = _dummy_outputs.output[i];
+				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
+//				for (size_t i = 0; i < 16; i++)
+//					_outputs.output[i] = _dummy_outputs.output[i];
 				PX4_INFO("final: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 			}
