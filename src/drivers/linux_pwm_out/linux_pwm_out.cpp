@@ -261,6 +261,10 @@ void task_main(int argc, char *argv[])
 
 	_mixer_group->groups_required(_groups_required);
 
+	//initialize _dummy_outputs to -1
+	for (size_t i = 0; i < 16; i++)
+		_dummy_outputs.output[i] = -1.0;
+
 
 	// create a thread for getting data from container
 	pthread_t poll_container_thread;
@@ -365,6 +369,10 @@ void task_main(int argc, char *argv[])
 
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
+
+			for (size_t i = 0; i < 16; i++)
+				PX4_INFO("output[%d]: %f", i, _outputs.output[i]);
+
 			updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
