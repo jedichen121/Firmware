@@ -2981,7 +2981,7 @@ MulticopterPositionControl::task_main()
 	fds[0].events = POLLIN;
 
 	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
-	_simplex.safety_switch_available = true;
+	_simplex.simplex_switch = true;
 	_simplex.safety_off = false;
 	orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
 

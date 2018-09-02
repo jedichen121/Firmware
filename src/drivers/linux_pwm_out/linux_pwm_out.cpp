@@ -46,6 +46,7 @@
 #include <uORB/topics/rc_channels.h>
 #include <uORB/topics/actuator_dummy_outputs.h>
 #include <uORB/topics/hil_sensor.h>
+#include <uORB/topics/simplex.h>
 
 
 #include <drivers/drv_hrt.h>
@@ -98,6 +99,7 @@ static char _mixer_filename[64] = "ROMFS/px4fmu_common/mixers/quad_x.main.mix";
 int     _controls_subs[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 int     _armed_sub = -1;
 int 	_dummy_outputs_sub = -1;
+int 	_simplex_sub = -1;
 
 // publications
 orb_advert_t    _outputs_pub = nullptr;
@@ -110,6 +112,7 @@ orb_id_t 			_controls_topics[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 actuator_outputs_s  _outputs;
 actuator_armed_s    _armed;
 struct actuator_dummy_outputs_s _dummy_outputs;
+struct simplex_s	_simplex;		// switch for simplex
 
 // polling
 uint8_t _poll_fds_num = 0;
@@ -225,6 +228,7 @@ void subscribe()
 	}
 
 	_dummy_outputs_sub = orb_subscribe(ORB_ID(actuator_dummy_outputs));
+	_simplex_sub = orb_subscribe(ORB_ID(simplex));
 
 }
 
@@ -300,6 +304,13 @@ void task_main(int argc, char *argv[])
 	_armed.prearmed = false;
 
 	pwm_limit_init(&_pwm_limit);
+
+	bool temp;
+	orb_check(_simplex_sub, &temp);
+	if (temp) {
+		orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
+		PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+	}
 
 	while (!_task_should_exit) {
 
@@ -477,6 +488,11 @@ void task_main(int argc, char *argv[])
 	if (_dummy_outputs_sub != -1) {
 		orb_unsubscribe(_dummy_outputs_sub);
 		_dummy_outputs_sub = -1;
+	}
+
+	if (_simplex_sub != -1) {
+		orb_unsubscribe(_simplex_sub);
+		_simplex_sub = -1;
 	}
 
 	_is_running = false;
