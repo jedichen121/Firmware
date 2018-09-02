@@ -2518,6 +2518,11 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
+	_simplex.timestamp = hrt_absolute_time();
+	_simplex.simplex_switch = true;
+	_simplex.safety_off = false;
+	orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
+
 	/* thrust vector in NED frame */
 	math::Vector<3> thrust_sp;
 
@@ -2981,6 +2986,7 @@ MulticopterPositionControl::task_main()
 	fds[0].events = POLLIN;
 
 	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
+	_simplex.timestamp = hrt_absolute_time();
 	_simplex.simplex_switch = true;
 	_simplex.safety_off = false;
 	orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
