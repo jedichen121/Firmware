@@ -305,12 +305,7 @@ void task_main(int argc, char *argv[])
 
 	pwm_limit_init(&_pwm_limit);
 
-	bool temp;
-	orb_check(_simplex_sub, &temp);
-	if (temp) {
-		orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-		PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
-	}
+	
 
 	while (!_task_should_exit) {
 
@@ -384,6 +379,12 @@ void task_main(int argc, char *argv[])
 
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
+			
+			orb_check(_simplex_sub, &updated);
+			if (updated) {
+				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
+				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+			}
 
 			updated = 1;
 			if (updated) {
