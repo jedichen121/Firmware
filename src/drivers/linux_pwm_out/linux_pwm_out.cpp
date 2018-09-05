@@ -386,7 +386,7 @@ void task_main(int argc, char *argv[])
 				// PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
 			}
 
-			updated = 0;
+			updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
@@ -562,11 +562,11 @@ void poll_container()
 
 	while (true) {
 		// wait for up to 100ms for data
-		pret = ::poll(&fds[0], fd_count, 100);
+		pret = ::poll(&fds[0], fd_count, 50);
 
 		// timed out
 		if (pret == 0) {
-			// PX4_WARN("px4_poll timed out");
+			PX4_WARN("px4_poll timed out");
 			continue;
 		}
 

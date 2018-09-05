@@ -2520,8 +2520,8 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
-	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
-	PX4_INFO("vel_err is: %f", (double) vel_err_abs);
+//	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
+//	PX4_INFO("vel_err is: %f", (double) vel_err_abs);
 
 	_simplex.timestamp = hrt_absolute_time();
 	_simplex.simplex_switch = true;
