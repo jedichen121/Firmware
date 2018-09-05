@@ -76,6 +76,8 @@
 
 #include <controllib/blocks.hpp>
 #include <controllib/block/BlockParam.hpp>
+#include <cmath>
+
 
 #define SIGMA_SINGLE_OP			0.000001f
 #define SIGMA_NORM			0.001f
@@ -2518,6 +2520,8 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
+	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
+
 	_simplex.timestamp = hrt_absolute_time();
 	_simplex.simplex_switch = true;
 	_simplex.safety_off = false;
@@ -2986,10 +2990,6 @@ MulticopterPositionControl::task_main()
 	fds[0].events = POLLIN;
 
 	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
-	_simplex.timestamp = hrt_absolute_time();
-	_simplex.simplex_switch = true;
-	_simplex.safety_off = false;
-	orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
 
 	while (!_task_should_exit) {
 		/* wait for up to 20ms for data */
@@ -3020,6 +3020,7 @@ MulticopterPositionControl::task_main()
 		/* set default max velocity in xy to vel_max */
 		_vel_max_xy = _params.vel_max_xy;
 
+		PX4_INFO("status is: %d", _vehicle_status.nav_state);
 
 		/* reset flags when landed */
 		if (_vehicle_land_detected.landed) {
