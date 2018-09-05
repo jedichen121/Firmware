@@ -379,14 +379,14 @@ void task_main(int argc, char *argv[])
 
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
-			
+
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+				// PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
 			}
 
-			updated = 1;
+			updated = 0;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);

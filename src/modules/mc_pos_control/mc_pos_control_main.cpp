@@ -2521,6 +2521,7 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
 	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
+	PX4_INFO("vel_err is: %f", (double) vel_err_abs);
 
 	_simplex.timestamp = hrt_absolute_time();
 	_simplex.simplex_switch = true;
@@ -3020,7 +3021,7 @@ MulticopterPositionControl::task_main()
 		/* set default max velocity in xy to vel_max */
 		_vel_max_xy = _params.vel_max_xy;
 
-		PX4_INFO("status is: %d", _vehicle_status.nav_state);
+		// PX4_INFO("status is: %d", _vehicle_status.nav_state);
 
 		/* reset flags when landed */
 		if (_vehicle_land_detected.landed) {
