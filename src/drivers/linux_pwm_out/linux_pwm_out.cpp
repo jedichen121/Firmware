@@ -80,6 +80,7 @@ static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
 
 pthread_mutex_t _pwm_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t _tout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include <simulator/simulator.h>
 
@@ -113,6 +114,7 @@ actuator_outputs_s  _outputs;
 actuator_armed_s    _armed;
 struct actuator_dummy_outputs_s _dummy_outputs;
 struct simplex_s	_simplex;		// switch for simplex
+bool container_timeout;				// switch for simplex, container timeout
 
 // polling
 uint8_t _poll_fds_num = 0;
@@ -305,7 +307,7 @@ void task_main(int argc, char *argv[])
 
 	pwm_limit_init(&_pwm_limit);
 
-	
+	bool container_timeout_copy = false;
 
 	while (!_task_should_exit) {
 
@@ -386,7 +388,16 @@ void task_main(int argc, char *argv[])
 				// PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
 			}
 
-			updated = 1;
+			// check if container timeout
+			pthread_mutex_lock(&_tout_mutex);
+			container_timeout_copy = container_timeout;
+			pthread_mutex_unlock(&_tout_mutex);
+			if (container_timeout_copy)
+				updated = 0;
+			else
+				updated = 1;
+
+			// updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
@@ -395,11 +406,6 @@ void task_main(int argc, char *argv[])
 //				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
 				pthread_mutex_unlock(&_pwm_mutex);
-
-//				for (size_t i = 0; i < 16; i++)
-//					_outputs.output[i] = _dummy_outputs.output[i];
-//				PX4_INFO("final: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
-
 			}
 
 			/* disable unused ports by setting their output to NaN */
@@ -558,7 +564,9 @@ void poll_container()
 	mavlink_status_t udp_status = {};
 
 	double temp = 0;
+	bool check = 0;
 	max_delay = 0;
+	container_timeout = false;
 
 	while (true) {
 		// wait for up to 100ms for data
@@ -567,6 +575,10 @@ void poll_container()
 		// timed out
 		if (pret == 0) {
 			PX4_WARN("px4_poll timed out");
+			pthread_mutex_lock(&_tout_mutex);
+			container_timeout = true;
+			pthread_mutex_unlock(&_tout_mutex);
+			check = 1;
 			continue;
 		}
 
@@ -574,6 +586,13 @@ void poll_container()
 		if (pret < 0) {
 			PX4_WARN("poll error for container %d, %d", pret, errno);
 			continue;
+		}
+
+		if (check) {
+			pthread_mutex_lock(&_tout_mutex);
+			container_timeout = false;
+			pthread_mutex_unlock(&_tout_mutex);
+			check = 0;
 		}
 
 		if (fds[0].revents & POLLIN) {
