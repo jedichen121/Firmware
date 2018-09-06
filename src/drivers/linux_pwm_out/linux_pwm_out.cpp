@@ -575,10 +575,12 @@ void poll_container()
 		// timed out
 		if (pret == 0) {
 //			PX4_WARN("px4_poll timed out");
-			pthread_mutex_lock(&_tout_mutex);
-			container_timeout = true;
-			pthread_mutex_unlock(&_tout_mutex);
-			check = 1;
+			if (!check) {
+				pthread_mutex_lock(&_tout_mutex);
+				container_timeout = true;
+				pthread_mutex_unlock(&_tout_mutex);
+				check = 1;
+			}
 			continue;
 		}
 
