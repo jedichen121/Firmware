@@ -77,6 +77,9 @@ sockaddr_in _srcaddr;
 sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
+
+pthread_mutex_t _pwm_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 #include <simulator/simulator.h>
 
 namespace linux_pwm_out
@@ -258,6 +261,15 @@ void task_main(int argc, char *argv[])
 
 	_mixer_group->groups_required(_groups_required);
 
+	//initialize _dummy_outputs
+	if (_mixer_group != nullptr) {
+		_dummy_outputs.noutputs = _mixer_group->mix(_dummy_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
+
+		/* disable unused ports by setting their output to NaN */
+		for (size_t i = _dummy_outputs.noutputs; i < _dummy_outputs.NUM_ACTUATOR_OUTPUTS; i++) {
+			_dummy_outputs.output[i] = NAN;
+		}
+	}
 
 	// create a thread for getting data from container
 	pthread_t poll_container_thread;
@@ -359,15 +371,11 @@ void task_main(int argc, char *argv[])
 			/* do mixing */
 			_outputs.noutputs = _mixer_group->mix(_outputs.output, actuator_outputs_s::NUM_ACTUATOR_OUTPUTS);
 
-
 			// check if there is new output from container
 			// orb_check(_dummy_outputs_sub, &updated);
-			update = 0;
-			if (updated) {
-				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
-				//PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
-				//PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
+			updated = 1;
+			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
@@ -380,10 +388,7 @@ void task_main(int argc, char *argv[])
 //					_outputs.output[i] = _dummy_outputs.output[i];
 //				PX4_INFO("final: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
-//				for (size_t i = 0; i < 16; i++)
-//					_outputs.output[i] = _dummy_outputs.output[i];
 			}
-
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
@@ -574,14 +579,17 @@ void poll_container()
 
 //							PX4_INFO("%f %f %f %f", (double) ctrl.controls[0], (double) ctrl.controls[1], (double) ctrl.controls[2], (double) ctrl.controls[3]);
 							if (check_control_value(ctrl)) {
-//								send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &ctrl, 200);
-								// for (int j = 0; j < 16; j++)
-								// 	aout.output[j] = ctrl.controls[j];
 								convert_to_output(aout, ctrl);
 //								PX4_INFO("output: %f %f %f %f", (double) aout.output[0], (double) aout.output[1], (double) aout.output[2], (double) aout.output[3]);
 //								PX4_INFO("timestamp: %f", (double) aout.timestamp);
 								timestamp = hrt_absolute_time();
 								aout.timestamp = timestamp;
+
+								// copy to shared variable
+								pthread_mutex_lock(&_pwm_mutex);
+								memcpy(&_dummy_outputs.output[0], &aout.output[0], 16*sizeof(float));
+								pthread_mutex_unlock(&_pwm_mutex);
+
 								int dummy_multi;
 								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
