@@ -570,11 +570,11 @@ void poll_container()
 
 	while (true) {
 		// wait for up to 100ms for data
-		pret = ::poll(&fds[0], fd_count, 50);
+		pret = ::poll(&fds[0], fd_count, 20);
 
 		// timed out
 		if (pret == 0) {
-			PX4_WARN("px4_poll timed out");
+//			PX4_WARN("px4_poll timed out");
 			pthread_mutex_lock(&_tout_mutex);
 			container_timeout = true;
 			pthread_mutex_unlock(&_tout_mutex);
