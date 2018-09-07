@@ -385,19 +385,19 @@ void task_main(int argc, char *argv[])
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-				// PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
 			}
 
 			// check if container timeout
-			pthread_mutex_lock(&_tout_mutex);
-			container_timeout_copy = container_timeout;
-			pthread_mutex_unlock(&_tout_mutex);
-			if (container_timeout_copy)
-				updated = 0;
-			else
-				updated = 1;
+			// pthread_mutex_lock(&_tout_mutex);
+			// container_timeout_copy = container_timeout;
+			// pthread_mutex_unlock(&_tout_mutex);
+			// if (container_timeout_copy)
+			// 	updated = 0;
+			// else
+			// 	updated = 1;
 
-			// updated = 1;
+			updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
@@ -564,23 +564,23 @@ void poll_container()
 	mavlink_status_t udp_status = {};
 
 	double temp = 0;
-	bool check = 0;
+	// bool check = 0;
 	max_delay = 0;
 	container_timeout = false;
 
 	while (true) {
 		// wait for up to 100ms for data
-		pret = ::poll(&fds[0], fd_count, 20);
+		pret = ::poll(&fds[0], fd_count, 100);
 
 		// timed out
 		if (pret == 0) {
 //			PX4_WARN("px4_poll timed out");
-			if (!check) {
-				pthread_mutex_lock(&_tout_mutex);
-				container_timeout = true;
-				pthread_mutex_unlock(&_tout_mutex);
-				check = 1;
-			}
+			// if (!check) {
+			// 	pthread_mutex_lock(&_tout_mutex);
+			// 	container_timeout = true;
+			// 	pthread_mutex_unlock(&_tout_mutex);
+			// 	check = 1;
+			// }
 			continue;
 		}
 
@@ -590,12 +590,12 @@ void poll_container()
 			continue;
 		}
 
-		if (check) {
-			pthread_mutex_lock(&_tout_mutex);
-			container_timeout = false;
-			pthread_mutex_unlock(&_tout_mutex);
-			check = 0;
-		}
+		// if (check) {
+		// 	pthread_mutex_lock(&_tout_mutex);
+		// 	container_timeout = false;
+		// 	pthread_mutex_unlock(&_tout_mutex);
+		// 	check = 0;
+		// }
 
 		if (fds[0].revents & POLLIN) {
 			// got new data from container, try to publish data
