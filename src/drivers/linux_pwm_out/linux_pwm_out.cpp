@@ -307,7 +307,7 @@ void task_main(int argc, char *argv[])
 
 	pwm_limit_init(&_pwm_limit);
 
-	bool container_timeout_copy = false;
+//	bool container_timeout_copy = false;
 
 	while (!_task_should_exit) {
 
@@ -385,7 +385,7 @@ void task_main(int argc, char *argv[])
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+//				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
 			}
 
 			// check if container timeout
