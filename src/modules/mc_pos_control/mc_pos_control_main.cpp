@@ -148,6 +148,7 @@ private:
 	int		_local_pos_sub;			/**< vehicle local position */
 	int		_pos_sp_triplet_sub;		/**< position setpoint triplet */
 	int		_home_pos_sub; 			/**< home position */
+	int 	_simplex_sub;			/**< simplex control */
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
@@ -840,6 +841,13 @@ MulticopterPositionControl::poll_subscriptions()
 
 	if (updated) {
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
+	}
+
+	orb_check(_simplex_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
+		PX4_INFO("simplex start");
 	}
 }
 
@@ -2528,7 +2536,7 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 //		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
 		_simplex.timestamp = hrt_absolute_time();
 		_simplex.simplex_switch = true;
-		_simplex.safety_off = false;
+		_simplex.safety_start = true;
 		orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
 	}
 
@@ -2975,6 +2983,7 @@ MulticopterPositionControl::task_main()
 	_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
 	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_home_pos_sub = orb_subscribe(ORB_ID(home_position));
+	_simplex_sub = orb_subscribe(ORB_ID(simplex));
 
 	parameters_update(true);
 

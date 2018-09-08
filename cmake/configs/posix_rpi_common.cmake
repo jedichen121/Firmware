@@ -81,6 +81,7 @@ set(config_module_list
 	# Container use
 	#
 	modules/comm_forward
+	modules/simplex
 
 	#
 	# PX4 drivers
