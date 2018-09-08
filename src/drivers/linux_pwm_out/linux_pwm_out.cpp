@@ -308,6 +308,8 @@ void task_main(int argc, char *argv[])
 	pwm_limit_init(&_pwm_limit);
 
 //	bool container_timeout_copy = false;
+	_simplex.simplex_switch = false;
+	_simplex.safety_start = false;
 
 	while (!_task_should_exit) {
 
@@ -396,8 +398,12 @@ void task_main(int argc, char *argv[])
 			// 	updated = 0;
 			// else
 			// 	updated = 1;
+			
+			if (_simplex.simplex_switch == 1)
+				updated = 0;
+			else
+				updated = 1;
 
-			updated = 1;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
