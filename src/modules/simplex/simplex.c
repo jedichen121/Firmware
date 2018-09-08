@@ -12,7 +12,7 @@ __EXPORT int simplex_main(int argc, char *argv[]);
 int simplex_main(int argc, char *argv[])
 {
 	struct simplex_s	_simplex;
-	memset(&_simplex, 0, sizeof(att));
+	memset(&_simplex, 0, sizeof(_simplex));
 
 	orb_advert_t _simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
 

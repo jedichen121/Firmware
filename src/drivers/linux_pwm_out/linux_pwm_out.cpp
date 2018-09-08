@@ -385,7 +385,7 @@ void task_main(int argc, char *argv[])
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-//				PX4_INFO("simplex switch: %d", _simplex.simplex_switch);
+				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
 			}
 
 			// check if container timeout

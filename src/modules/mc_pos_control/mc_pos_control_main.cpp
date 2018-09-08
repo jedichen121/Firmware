@@ -2528,20 +2528,18 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
-	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
-//	PX4_INFO("vel_err is: %f", (double) vel_err_abs);
-//	PX4_INFO("status is: %d", _vehicle_status.nav_state);
+	if (_simplex.safety_start == true) {
+		float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
+		if (_vehicle_status.nav_state == 2 && vel_err_abs > 3) {
+	//		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
+			_simplex.timestamp = hrt_absolute_time();
+			_simplex.simplex_switch = true;
+			_simplex.safety_start = true;
+			orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
+		}
 
-	if (_vehicle_status.nav_state == 2 && vel_err_abs > 3) {
-//		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
-		_simplex.timestamp = hrt_absolute_time();
-		_simplex.simplex_switch = true;
-		_simplex.safety_start = true;
-		orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
 	}
 
-
-	
 
 	/* thrust vector in NED frame */
 	math::Vector<3> thrust_sp;
