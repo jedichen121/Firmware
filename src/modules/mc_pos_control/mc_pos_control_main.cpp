@@ -843,12 +843,15 @@ MulticopterPositionControl::poll_subscriptions()
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
 	}
 
-	orb_check(_simplex_sub, &updated);
+	if (_simplex.safety_start == false) {
+		orb_check(_simplex_sub, &updated);
 
-	if (updated) {
-		orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-		PX4_INFO("simplex start");
+		if (updated) {
+			orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
+			PX4_INFO("simplex start");
+		}
 	}
+	
 }
 
 float
@@ -2528,7 +2531,7 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
-	if (_simplex.safety_start == true) {
+	if (_simplex.safety_start == true && _simplex.simplex_switch == false) {
 		float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
 		if (_vehicle_status.nav_state == 2 && vel_err_abs > 3) {
 	//		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
@@ -2985,6 +2988,10 @@ MulticopterPositionControl::task_main()
 
 	parameters_update(true);
 
+	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
+	_simplex.simplex_switch = false;
+	_simplex.safety_start = false;
+
 	/* get an initial update for all sensor and status data */
 	poll_subscriptions();
 
@@ -3003,8 +3010,6 @@ MulticopterPositionControl::task_main()
 
 	fds[0].fd = _local_pos_sub;
 	fds[0].events = POLLIN;
-
-	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
 
 	while (!_task_should_exit) {
 		/* wait for up to 20ms for data */
