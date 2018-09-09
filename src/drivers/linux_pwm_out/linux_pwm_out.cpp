@@ -79,6 +79,8 @@ sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
 
+uint64_t timestamp_copy;
+
 pthread_mutex_t _pwm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t _tout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -311,6 +313,10 @@ void task_main(int argc, char *argv[])
 	_simplex.simplex_switch = false;
 	_simplex.safety_start = false;
 
+	uint64_t timestamp_copy = 1;
+	uint64_t timestamp_old = 0;
+	int timeout_switch = 0;
+
 	while (!_task_should_exit) {
 
 		bool updated;
@@ -398,11 +404,22 @@ void task_main(int argc, char *argv[])
 			// 	updated = 0;
 			// else
 			// 	updated = 1;
-			
+
 			if (_simplex.simplex_switch == 1)
 				updated = 0;
 			else
 				updated = 1;
+			
+			if (_simplex.safety_start == 1) {
+				if (updated) {
+					if (_outputs.timestamp == timestamp_copy)
+						timeout_switch++;
+					if (timeout_switch > 2)
+						updated = 0
+					timeout_switch = 0;
+					timestamp_copy = _outputs.timestamp;
+				}
+			}
 
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
@@ -411,8 +428,11 @@ void task_main(int argc, char *argv[])
 				pthread_mutex_lock(&_pwm_mutex);
 //				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
+				memcpy(&_outputs.timestamp, &_dummy_outputs.timestamp, sizeof(uint64_t));
 				pthread_mutex_unlock(&_pwm_mutex);
 			}
+
+
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = _outputs.noutputs; i < _outputs.NUM_ACTUATOR_OUTPUTS; i++) {
@@ -530,13 +550,12 @@ void poll_container()
 	pthread_setname_np(pthread_self(), "poll_container");
 #endif
 
+	uint64_t timestamp;
 
 	/* advertise attitude topic */
     struct actuator_dummy_outputs_s aout;
     memset(&aout, 0, sizeof(aout));
     _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
-
-    uint64_t timestamp;
 
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
@@ -632,6 +651,7 @@ void poll_container()
 								// copy to shared variable
 								pthread_mutex_lock(&_pwm_mutex);
 								memcpy(&_dummy_outputs.output[0], &aout.output[0], 16*sizeof(float));
+								memcpy(&_dummy_outputs.timestamp, &aout.timestamp, sizeof(uint64_t));
 								pthread_mutex_unlock(&_pwm_mutex);
 
 								int dummy_multi;
