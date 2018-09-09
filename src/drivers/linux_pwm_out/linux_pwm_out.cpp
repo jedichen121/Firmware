@@ -313,7 +313,7 @@ void task_main(int argc, char *argv[])
 	_simplex.simplex_switch = false;
 	_simplex.safety_start = false;
 
-	uint64_t timestamp_copy = 1;
+	uint64_t timestamp_copy = 0;
 	uint64_t timestamp_old = 0;
 	int timeout_switch = 0;
 
@@ -412,12 +412,14 @@ void task_main(int argc, char *argv[])
 			
 			if (_simplex.safety_start == 1) {
 				if (updated) {
-					if (_outputs.timestamp == timestamp_copy)
+					if (timestamp_old == timestamp_copy) {
 						timeout_switch++;
-					if (timeout_switch > 2)
-						updated = 0
-					timeout_switch = 0;
-					timestamp_copy = _outputs.timestamp;
+						if (timeout_switch > 2)
+							updated = 0;
+					}
+					else
+						timeout_switch = 0;
+					timestamp_copy = timestamp_old;
 				}
 			}
 
@@ -428,7 +430,7 @@ void task_main(int argc, char *argv[])
 				pthread_mutex_lock(&_pwm_mutex);
 //				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
-				memcpy(&_outputs.timestamp, &_dummy_outputs.timestamp, sizeof(uint64_t));
+				memcpy(&timestamp_old, &_dummy_outputs.timestamp, sizeof(uint64_t));
 				pthread_mutex_unlock(&_pwm_mutex);
 			}
 
@@ -451,7 +453,7 @@ void task_main(int argc, char *argv[])
 			}
 
 			uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-			// PX4_INFO("host: %f %f %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3], (double) _outputs.output[4], (double) _outputs.output[5]);
+			PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 			// TODO FIXME: pre-armed seems broken
 			pwm_limit_calc(_armed.armed,
