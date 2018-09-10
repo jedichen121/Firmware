@@ -101,7 +101,8 @@ private:
 	struct work_s _work;
 
 	orb_advert_t _rcinput_pub;
-
+	
+	int count=0;
 	int _channels;
 	int _ch_fd[input_rc_s::RC_INPUT_MAX_CHANNELS];
 	struct input_rc_s _data;
@@ -227,6 +228,8 @@ void RcInput::_measure(void)
 	_data.input_source = input_rc_s::RC_INPUT_SOURCE_PX4IO_PPM;
 
 	orb_publish(ORB_ID(input_rc), _rcinput_pub, &_data);
+	PX4_INFO("~~gyro%d, %d",_data.timestamp ,count);
+
 	//PX4_INFO("*******PUBLISHED INPUT_RC");
 
 	//send input_rc to container @zivy

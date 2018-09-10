@@ -104,7 +104,7 @@ private:
 	perf_counter_t _baro_sample_perf;
 
 	mavlink_hil_sensor_t _hil_sensor;
-
+	int count=0;
 	int _fd;
 	sockaddr_in _send_addr;
 
@@ -219,6 +219,9 @@ int DfMS5611Wrapper::_publish(struct baro_sensor_data &data)
 		} else {
 			orb_publish(ORB_ID(sensor_baro), _baro_topic, &baro_report);
 //			PX4_INFO("baro publish: %f %f %f", (double) baro_report.pressure, (double) baro_report.altitude, (double) hrt_absolute_time());
+			count++;
+//                        PX4_INFO("~~gyro%d %d",baro_report.timestamp,count);
+
 		}
 
 		// //@zivy

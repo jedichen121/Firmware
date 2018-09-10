@@ -500,6 +500,7 @@ Navigator::task_main()
 
 				} else {
 					set_cruising_speed();
+//					PX4_INFO("cmd.param3 %d", (double)cmd.param3);
 
 					/* if no speed target was given try to set throttle */
 					if (cmd.param3 > FLT_EPSILON) {
@@ -854,6 +855,7 @@ Navigator::reset_triplets()
 float
 Navigator::get_cruising_throttle()
 {
+//	PX4_INFO("get_cruising_throttle, _mission_throttle %f ",(double)_mission_throttle);
 	/* Return the mission-requested cruise speed, or default FW_THR_CRUISE value */
 	if (_mission_throttle > FLT_EPSILON) {
 		return _mission_throttle;
@@ -1044,6 +1046,7 @@ Navigator::publish_vehicle_cmd(vehicle_command_s *vcmd)
 
 	if (_vehicle_cmd_pub != nullptr) {
 		orb_publish(ORB_ID(vehicle_command), _vehicle_cmd_pub, vcmd);
+//		PX4_INFO("#########NAV VEHICLE COMMAND");
 
 	} else {
 		_vehicle_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);

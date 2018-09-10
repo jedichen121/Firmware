@@ -42,6 +42,7 @@ set(config_module_list
 	systemcmds/reboot
 	systemcmds/topic_listener
 	systemcmds/perf
+	systemcmds/config
 
 	#
 	# Estimation modules

@@ -1083,6 +1083,7 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 		break;
 
 	case vehicle_command_s::VEHICLE_CMD_NAV_GUIDED_ENABLE: {
+		PX4_INFO("VEHICLE_CMD_NAV_GUIDED_ENABLE");
 			transition_result_t res = TRANSITION_DENIED;
 			static main_state_t main_state_pre_offboard = commander_state_s::MAIN_STATE_MANUAL;
 

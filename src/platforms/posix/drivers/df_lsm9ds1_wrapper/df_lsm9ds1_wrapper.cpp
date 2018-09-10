@@ -127,7 +127,7 @@ private:
 	orb_advert_t		    _gyro_topic;
 	orb_advert_t        	    _mag_topic;
 	orb_advert_t		    _mavlink_log_pub;
-
+	int count=0;
 	mavlink_hil_sensor_t _hil_sensor;
 
 
@@ -362,6 +362,8 @@ void DfLsm9ds1Wrapper::info()
 	perf_print_counter(_accel_range_hit_counter);
 
 	perf_print_counter(_publish_perf);
+	PX4_INFO("GYRO_SAMPLERATE_DEFAULT= %d,GYROIOCGSAMPLERATE=%d",GYRO_SAMPLERATE_DEFAULT,GYROIOCGSAMPLERATE);
+
 }
 
 void DfLsm9ds1Wrapper::_update_gyro_calibration()
@@ -743,6 +745,9 @@ int DfLsm9ds1Wrapper::_publish(struct imu_sensor_data &data)
 
 		if (_gyro_topic != nullptr) {
 			orb_publish(ORB_ID(sensor_gyro), _gyro_topic, &gyro_report);
+
+			count++;
+//			PX4_INFO("~~gyro%d %d",gyro_report.timestamp,count);
 		}
 
 		if (_accel_topic != nullptr) {

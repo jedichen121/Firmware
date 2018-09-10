@@ -97,7 +97,7 @@ static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 
 static int _fd_mavrec;
 sockaddr_in _send_addr_mavrec;
-#define SEND_PORT 	14556//14556
+#define SEND_PORT 	14656//14556
 
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
@@ -219,12 +219,13 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		}
 	}
 
-//	PX4_INFO("~~~~~receiving messages,msgid %d ", msg->msgid);
+	//if (msg->msgid!=0 &&mavlink_system.sysid==msg->sysid&&mavlink_system.compid== msg->compid) PX4_INFO("~~~~~receiving messages,msgid %d  compid %d, sys %d", msg->msgid, msg->compid,msg->sysid );
+//	PX4_INFO("COMPID %d, SYSID %d",mavlink_system.compid,mavlink_system.sysid );
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_COMMAND_LONG:
 		PX4_INFO("receiving messages,MAVLINK_MSG_ID_COMMAND_LONG ");
 		if (_mavlink->accepting_commands()) {
-			PX4_INFO("accepting handle ");
+//			PX4_INFO("accepting handle ");
 
 			handle_message_command_long(msg);
 		}
@@ -492,7 +493,7 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 
 
-//PX4_INFO("CMD.COMMAND %d",cmd_mavlink.command );
+	PX4_INFO("RECEIVEING MESSAGE %d",cmd_mavlink.command );
 
 	if (cmd_mavlink.command == MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES) {
 		/* send autopilot version message */
@@ -559,22 +560,24 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 		} else {
 			orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
-			PX4_INFO("command id=%d ",vcmd.command);
-			if (vcmd.command==400  )
-			{	cmd_mavlink.target_system = 1;
-			cmd_mavlink.target_component = 1;
-			mavlink_message_t message;
-			mavlink_msg_command_long_encode_chan(1, 200, MAVLINK_COMM_0, &message,
-					&cmd_mavlink);
+			PX4_INFO("publish vehicle_command %d, target_system %d, target_component %d",vcmd.command,cmd_mavlink.target_system,vcmd.target_component );
+
+//			if (vcmd.command==400 )
+//			{
+//				cmd_mavlink.target_system = 1;
+//			cmd_mavlink.target_component = 1;
+//			mavlink_message_t message;
+//			mavlink_msg_command_long_encode_chan(1, 200, MAVLINK_COMM_0, &message,
+//					&cmd_mavlink);
 			//send_mavlink_message(&msg);
-			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-			int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
-				ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
-									(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
-							if (len <= 0) {
-								PX4_INFO("Failed sending mavlink message\n");
-							}
-			}
+//			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+//			int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
+//				ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
+//									(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
+//							if (len <= 0) {
+//								PX4_INFO("Failed sending mavlink message\n");
+//							}
+//			}
 		}
 	}
 
@@ -826,7 +829,7 @@ MavlinkReceiver::handle_message_hil_optical_flow(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 {
-	PX4_INFO("seting new mode");
+//	PX4_INFO("seting new mode");
 	mavlink_set_mode_t new_mode;
 	mavlink_msg_set_mode_decode(msg, &new_mode);
 //	new_mode.target_system = 1;
@@ -835,13 +838,13 @@ MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 	mavlink_msg_set_mode_encode_chan(1, 200, MAVLINK_COMM_0, &message,
 			&new_mode);
 	//send_mavlink_message(&msg);
-	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-	int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
-	ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
-			(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
-	if (len <= 0) {
-		PX4_INFO("Failed sending mavlink message\n");
-	}
+//	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+//	int packetlen = mavlink_msg_to_send_buffer(buffer, &message);
+//	ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
+//			(struct sockaddr *) &_send_addr_mavrec, sizeof(_send_addr_mavrec));
+//	if (len <= 0) {
+//		PX4_INFO("Failed sending mavlink message\n");
+//	}
 
 	union px4_custom_mode custom_mode;
 	custom_mode.data = new_mode.custom_mode;
@@ -867,11 +870,11 @@ MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 
 	if (_cmd_pub == nullptr) {
 		_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), &vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);
-//		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
+		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
 
 	} else {
 		orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
-//		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
+		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
 
 	}
 }
@@ -2612,6 +2615,17 @@ MavlinkReceiver::receive_thread(void *arg)
 						if (!(_mavlink->get_status()->flags & MAVLINK_STATUS_FLAG_IN_MAVLINK1)) {
 							/* this will only switch to proto version 2 if allowed in settings */
 							_mavlink->set_proto_version(2);
+						}
+
+						/*forward all the messages to container*/
+						uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+						int packetlen = mavlink_msg_to_send_buffer(buffer,
+								&msg);
+						ssize_t len = sendto(_fd_mavrec, buffer, packetlen, 0,
+								(struct sockaddr *) &_send_addr_mavrec,
+								sizeof(_send_addr_mavrec));
+						if (len <= 0) {
+							PX4_INFO("Failed sending mavlink message\n");
 						}
 
 						/* handle generic messages and commands */
