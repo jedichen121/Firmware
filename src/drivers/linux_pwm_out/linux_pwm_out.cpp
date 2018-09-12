@@ -409,13 +409,15 @@ void task_main(int argc, char *argv[])
 				updated = 0;
 			else
 				updated = 1;
-			
+//			PX4_INFO("old: %f, copy: %f", (double) timestamp_old, (double) timestamp_copy);
 			if (_simplex.safety_start == 1) {
 				if (updated) {
 					if (timestamp_old == timestamp_copy) {
 						timeout_switch++;
-						if (timeout_switch > 2)
+						if (timeout_switch > 3){
 							updated = 0;
+//							PX4_INFO("switching");
+						}
 					}
 					else
 						timeout_switch = 0;
@@ -453,7 +455,7 @@ void task_main(int argc, char *argv[])
 			}
 
 			uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-			PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
+//			PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
 
 			// TODO FIXME: pre-armed seems broken
 			pwm_limit_calc(_armed.armed,
