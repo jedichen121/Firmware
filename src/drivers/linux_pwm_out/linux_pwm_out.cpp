@@ -101,13 +101,13 @@ static char _mixer_filename[64] = "ROMFS/px4fmu_common/mixers/quad_x.main.mix";
 // subscriptions
 int     _controls_subs[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
 int     _armed_sub = -1;
-int 	_dummy_outputs_sub = -1;
+// int 	_dummy_outputs_sub = -1;
 int 	_simplex_sub = -1;
 
 // publications
 orb_advert_t    _outputs_pub = nullptr;
 orb_advert_t    _rc_pub = nullptr;
-orb_advert_t    _dummy_pub = nullptr;
+// orb_advert_t    _dummy_pub = nullptr;
 
 // topic structures
 actuator_controls_s _controls[actuator_controls_s::NUM_ACTUATOR_CONTROL_GROUPS];
@@ -231,7 +231,7 @@ void subscribe()
 
 	}
 
-	_dummy_outputs_sub = orb_subscribe(ORB_ID(actuator_dummy_outputs));
+	// _dummy_outputs_sub = orb_subscribe(ORB_ID(actuator_dummy_outputs));
 	_simplex_sub = orb_subscribe(ORB_ID(simplex));
 
 }
@@ -396,19 +396,12 @@ void task_main(int argc, char *argv[])
 				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
 			}
 
-			// check if container timeout
-			// pthread_mutex_lock(&_tout_mutex);
-			// container_timeout_copy = container_timeout;
-			// pthread_mutex_unlock(&_tout_mutex);
-			// if (container_timeout_copy)
+
+			// if (_simplex.simplex_switch == 1)
 			// 	updated = 0;
 			// else
 			// 	updated = 1;
-
-			if (_simplex.simplex_switch == 1)
-				updated = 0;
-			else
-				updated = 1;
+			updated = 1;
 //			PX4_INFO("old: %f, copy: %f", (double) timestamp_old, (double) timestamp_copy);
 			if (_simplex.safety_start == 1) {
 				if (updated) {
@@ -522,10 +515,10 @@ void task_main(int argc, char *argv[])
 		orb_unsubscribe(rc_channels_sub);
 	}
 
-	if (_dummy_outputs_sub != -1) {
-		orb_unsubscribe(_dummy_outputs_sub);
-		_dummy_outputs_sub = -1;
-	}
+	// if (_dummy_outputs_sub != -1) {
+	// 	orb_unsubscribe(_dummy_outputs_sub);
+	// 	_dummy_outputs_sub = -1;
+	// }
 
 	if (_simplex_sub != -1) {
 		orb_unsubscribe(_simplex_sub);
@@ -559,7 +552,7 @@ void poll_container()
 	/* advertise attitude topic */
     struct actuator_dummy_outputs_s aout;
     memset(&aout, 0, sizeof(aout));
-    _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
+    // _dummy_pub = orb_advertise(ORB_ID(actuator_dummy_outputs), &aout);
 
 	// udp socket for receiving from container
 	struct sockaddr_in _con_recv_addr;
@@ -658,8 +651,8 @@ void poll_container()
 								memcpy(&_dummy_outputs.timestamp, &aout.timestamp, sizeof(uint64_t));
 								pthread_mutex_unlock(&_pwm_mutex);
 
-								int dummy_multi;
-								orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
+								// int dummy_multi;
+								// orb_publish_auto(ORB_ID(actuator_dummy_outputs), &_dummy_pub, &aout, &dummy_multi, ORB_PRIO_MAX - 1);
 							}
 						}
 						else if (msg.msgid != 0) {

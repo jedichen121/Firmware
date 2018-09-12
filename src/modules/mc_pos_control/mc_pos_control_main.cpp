@@ -148,11 +148,11 @@ private:
 	int		_local_pos_sub;			/**< vehicle local position */
 	int		_pos_sp_triplet_sub;		/**< position setpoint triplet */
 	int		_home_pos_sub; 			/**< home position */
-	int 	_simplex_sub;			/**< simplex control */
+	// int 	_simplex_sub;			/**< simplex control */
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
-	orb_advert_t	_simplex_pub;
+	// orb_advert_t	_simplex_pub;
 
 	orb_id_t _attitude_setpoint_id;
 
@@ -166,7 +166,7 @@ private:
 	struct position_setpoint_triplet_s		_pos_sp_triplet;	/**< vehicle global position setpoint triplet */
 	struct vehicle_local_position_setpoint_s	_local_pos_sp;		/**< vehicle local position setpoint */
 	struct home_position_s				_home_pos; 				/**< home position */
-	struct simplex_s					_simplex;		// switch for simplex
+	// struct simplex_s					_simplex;		// switch for simplex
 
 	control::BlockParamFloat _manual_thr_min; /**< minimal throttle output when flying in manual mode */
 	control::BlockParamFloat _manual_thr_max; /**< maximal throttle output when flying in manual mode */
@@ -424,7 +424,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	/* publications */
 	_att_sp_pub(nullptr),
 	_local_pos_sp_pub(nullptr),
-	_simplex_pub(nullptr),
+	// _simplex_pub(nullptr),
 	_attitude_setpoint_id(nullptr),
 	_vehicle_status{},
 	_vehicle_land_detected{},
@@ -436,7 +436,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_pos_sp_triplet{},
 	_local_pos_sp{},
 	_home_pos{},
-	_simplex{},
+	// _simplex{},
 	_manual_thr_min(this, "MANTHR_MIN"),
 	_manual_thr_max(this, "MANTHR_MAX"),
 	_xy_vel_man_expo(this, "XY_MAN_EXPO"),
@@ -843,14 +843,14 @@ MulticopterPositionControl::poll_subscriptions()
 		orb_copy(ORB_ID(home_position), _home_pos_sub, &_home_pos);
 	}
 
-	if (_simplex.safety_start == false) {
-		orb_check(_simplex_sub, &updated);
+	// if (_simplex.safety_start == false) {
+	// 	orb_check(_simplex_sub, &updated);
 
-		if (updated) {
-			orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-			PX4_INFO("simplex start");
-		}
-	}
+	// 	if (updated) {
+	// 		orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
+	// 		PX4_INFO("simplex start");
+	// 	}
+	// }
 	
 }
 
@@ -2531,17 +2531,17 @@ MulticopterPositionControl::calculate_thrust_setpoint(float dt)
 	/* velocity error */
 	math::Vector<3> vel_err = _vel_sp - _vel;
 
-	if (_simplex.safety_start == true && _simplex.simplex_switch == false) {
-		float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
-		if (_vehicle_status.nav_state == 2 && vel_err_abs > 3) {
-	//		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
-			_simplex.timestamp = hrt_absolute_time();
-			_simplex.simplex_switch = true;
-			_simplex.safety_start = true;
-			orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
-		}
+	// if (_simplex.safety_start == true && _simplex.simplex_switch == false) {
+	// 	float vel_err_abs = fabs(vel_err(0))+fabs(vel_err(1))+fabs(vel_err(2));
+	// 	if (_vehicle_status.nav_state == 2 && vel_err_abs > 3) {
+	// //		PX4_INFO("status is: %d, error is: %f", _vehicle_status.nav_state, (double) vel_err_abs);
+	// 		_simplex.timestamp = hrt_absolute_time();
+	// 		_simplex.simplex_switch = true;
+	// 		_simplex.safety_start = true;
+	// 		orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
+	// 	}
 
-	}
+	// }
 
 
 	/* thrust vector in NED frame */
@@ -2984,13 +2984,13 @@ MulticopterPositionControl::task_main()
 	_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
 	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_home_pos_sub = orb_subscribe(ORB_ID(home_position));
-	_simplex_sub = orb_subscribe(ORB_ID(simplex));
+	// _simplex_sub = orb_subscribe(ORB_ID(simplex));
 
 	parameters_update(true);
 
-	_simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
-	_simplex.simplex_switch = false;
-	_simplex.safety_start = false;
+	// _simplex_pub = orb_advertise(ORB_ID(simplex), &_simplex);
+	// _simplex.simplex_switch = false;
+	// _simplex.safety_start = false;
 
 	/* get an initial update for all sensor and status data */
 	poll_subscriptions();
