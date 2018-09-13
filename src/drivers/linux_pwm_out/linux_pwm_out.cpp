@@ -79,8 +79,6 @@ sockaddr_in _dummy_addr;
 static socklen_t _addrlen = sizeof(_srcaddr);
 double max_delay;
 
-uint64_t timestamp_copy;
-
 pthread_mutex_t _pwm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t _tout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -313,7 +311,7 @@ void task_main(int argc, char *argv[])
 	_simplex.simplex_switch = false;
 	_simplex.safety_start = false;
 
-	uint64_t timestamp_copy = 0;
+	uint64_t timestamp_copy = 1;
 	uint64_t timestamp_old = 0;
 	int timeout_switch = 0;
 
@@ -404,18 +402,16 @@ void task_main(int argc, char *argv[])
 			updated = 1;
 //			PX4_INFO("old: %f, copy: %f", (double) timestamp_old, (double) timestamp_copy);
 			if (_simplex.safety_start == 1) {
-				if (updated) {
-					if (timestamp_old == timestamp_copy) {
-						timeout_switch++;
-						if (timeout_switch > 5){
-							updated = 0;
+				if (timestamp_old == timestamp_copy) {
+					timeout_switch++;
+					if (timeout_switch > 5){
+						updated = 0;
 //							PX4_INFO("switching");
-						}
 					}
-					else
-						timeout_switch = 0;
-					timestamp_copy = timestamp_old;
 				}
+				else
+					timeout_switch = 0;
+				timestamp_old = timestamp_copy;
 			}
 
 			if (updated) {
@@ -425,7 +421,7 @@ void task_main(int argc, char *argv[])
 				pthread_mutex_lock(&_pwm_mutex);
 //				PX4_INFO("dummy: %f %f %f %f", (double) _dummy_outputs.output[0], (double) _dummy_outputs.output[1], (double) _dummy_outputs.output[2], (double) _dummy_outputs.output[3]);
 				memcpy(&_outputs.output[0], &_dummy_outputs.output[0], 16*sizeof(float));
-				memcpy(&timestamp_old, &_dummy_outputs.timestamp, sizeof(uint64_t));
+				memcpy(&timestamp_copy, &_dummy_outputs.timestamp, sizeof(uint64_t));
 				pthread_mutex_unlock(&_pwm_mutex);
 			}
 
