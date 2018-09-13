@@ -407,7 +407,7 @@ void task_main(int argc, char *argv[])
 				if (updated) {
 					if (timestamp_old == timestamp_copy) {
 						timeout_switch++;
-						if (timeout_switch > 3){
+						if (timeout_switch > 5){
 							updated = 0;
 //							PX4_INFO("switching");
 						}
