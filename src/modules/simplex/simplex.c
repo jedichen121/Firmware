@@ -21,7 +21,7 @@ int simplex_main(int argc, char *argv[])
 	_simplex.safety_start = true;
 	orb_publish(ORB_ID(simplex), _simplex_pub, &_simplex);
 
-    PX4_INFO("Hello Sky!");
+//    PX4_INFO("Hello Sky!");
     return OK;
 }
 

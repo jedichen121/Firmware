@@ -312,8 +312,8 @@ void task_main(int argc, char *argv[])
 	_simplex.safety_start = false;
 
 	uint64_t timestamp_copy = 1;
-	uint64_t timestamp_old = 0;
-	int timeout_switch = 0;
+//	uint64_t timestamp_old = 0;
+//	int timeout_switch = 0;
 
 	while (!_task_should_exit) {
 
@@ -391,7 +391,7 @@ void task_main(int argc, char *argv[])
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
+//				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
 			}
 
 
@@ -402,18 +402,19 @@ void task_main(int argc, char *argv[])
 			updated = 1;
 //			PX4_INFO("old: %f, copy: %f", (double) timestamp_old, (double) timestamp_copy);
 			if (_simplex.safety_start == 1) {
-				if (timestamp_old == timestamp_copy) {
-					timeout_switch++;
-					if (timeout_switch > 5){
-						updated = 0;
-//							PX4_INFO("switching");
-					}
-				}
-				else
-					timeout_switch = 0;
-				timestamp_old = timestamp_copy;
+				updated = 0;
+//				if (timestamp_old == timestamp_copy) {
+//					timeout_switch++;
+//					if (timeout_switch > 5){
+//						updated = 1;
+//						PX4_INFO("switching");
+//					}
+//				}
+//				else
+//					timeout_switch = 0;
+//				timestamp_old = timestamp_copy;
 			}
-
+//			updated = 0;
 			if (updated) {
 				// orb_copy(ORB_ID(actuator_dummy_outputs), _dummy_outputs_sub, &_dummy_outputs);
 //				PX4_INFO("host: %f %f %f %f", (double) _outputs.output[0], (double) _outputs.output[1], (double) _outputs.output[2], (double) _outputs.output[3]);
