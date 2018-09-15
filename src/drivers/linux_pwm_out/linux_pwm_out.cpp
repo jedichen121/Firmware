@@ -391,14 +391,15 @@ void task_main(int argc, char *argv[])
 			orb_check(_simplex_sub, &updated);
 			if (updated) {
 				orb_copy(ORB_ID(simplex), _simplex_sub, &_simplex);
-//				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
+				PX4_INFO("simplex switch: %d, %d", _simplex.simplex_switch, _simplex.safety_start);
 			}
 
 
-			// if (_simplex.simplex_switch == 1)
-			// 	updated = 0;
-			// else
-			// 	updated = 1;
+			if (_simplex.simplex_switch == 1)
+				pthread_cancel(poll_container_thread);
+				updated = 0;
+			else
+				updated = 1;
 			updated = 1;
 //			PX4_INFO("old: %f, copy: %f", (double) timestamp_old, (double) timestamp_copy);
 			if (_simplex.safety_start == 1) {
