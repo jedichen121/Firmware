@@ -172,11 +172,7 @@ PWMSim	*g_pwm_sim = nullptr;
 bool PWMSim::_armed = false;
 bool PWMSim::_lockdown = false;
 bool PWMSim::_failsafe = false;
-// esc parameters
-int32_t _pwm_disarmed;
-int32_t _pwm_min;
-int32_t _pwm_max;
-actuator_armed_s    _armed;
+
 PWMSim::PWMSim() :
 	CDev("pwm_out_sim", PWM_OUTPUT0_DEVICE_PATH),
 	_task(-1),
@@ -372,7 +368,6 @@ PWMSim::subscribe()
 void
 PWMSim::task_main()
 {
-//	PX4_INFO("HELLO pwm out sim");
 	/* force a reset of the update rate */
 	_current_update_rate = 0;
 
@@ -387,6 +382,7 @@ PWMSim::task_main()
 
 	/* loop until killed */
 	while (!_task_should_exit) {
+
 		if (_groups_subscribed != _groups_required) {
 			subscribe();
 			_groups_subscribed = _groups_required;
@@ -465,7 +461,6 @@ PWMSim::task_main()
 
 			case MODE_8PWM:
 				num_outputs = 8;
-//				PX4_INFO("~~~num_output %d", num_outputs);
 				break;
 
 			case MODE_16PWM:
@@ -476,16 +471,11 @@ PWMSim::task_main()
 				num_outputs = 0;
 				break;
 			}
-			//set the same with host rover @zivy
-//			PX4_INFO("num_output %d", num_outputs);
-//			PX4_INFO("control: %f %f %f %f %f %f", (double) _controls[0].control[0], (double) _controls[0].control[1], (double) _controls[0].control[2], (double) _controls[0].control[3], (double) _controls[0].control[4], (double) _controls[0].control[5]);
 
 			/* do mixing */
 			num_outputs = _mixers->mix(&outputs.output[0], num_outputs);
-//			PX4_INFO("num_output %d", num_outputs);
 			outputs.noutputs = num_outputs;
 			outputs.timestamp = hrt_absolute_time();
-
 
 			/* disable unused ports by setting their output to NaN */
 			for (size_t i = 0; i < sizeof(outputs.output) / sizeof(outputs.output[0]); i++) {
@@ -493,73 +483,7 @@ PWMSim::task_main()
 					outputs.output[i] = NAN;
 				}
 			}
-//			PX4_INFO("after mix %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
-
-
-//			const uint16_t reverse_mask = 0;
-//						uint16_t disarmed_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-//						uint16_t min_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-//						uint16_t max_pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-//
-//						for (unsigned int i = 0; i < actuator_outputs_s::NUM_ACTUATOR_OUTPUTS; i++) {
-//							disarmed_pwm[i] = _pwm_disarmed;
-//							min_pwm[i] = _pwm_min;
-//							max_pwm[i] = _pwm_max;
-//						}
-//
-//						uint16_t pwm[actuator_outputs_s::NUM_ACTUATOR_OUTPUTS];
-//
-//						// TODO FIXME: pre-armed seems broken
-//						pwm_limit_calc(_armed.armed,
-//							       false/*_armed.prearmed*/,
-//							       _outputs.noutputs,
-//							       reverse_mask,
-//							       disarmed_pwm,
-//							       min_pwm,
-//							       max_pwm,
-//							       _outputs.output,
-//							       pwm,
-//							       &_pwm_limit);
-//
-//						if (_armed.lockdown || _armed.manual_lockdown) {
-//							pwm_out->send_output_pwm(disarmed_pwm, _outputs.noutputs);
-//
-//						} else if (_armed.in_esc_calibration_mode) {
-//
-//							uint16_t pwm_value;
-//
-//							if (_controls[0].control[3] > 0.5f) { // use throttle to decide which value to use
-//								pwm_value = _pwm_max;
-//
-//							} else {
-//								pwm_value = _pwm_min;
-//							}
-//
-//							for (uint32_t i = 0; i < _outputs.noutputs; ++i) {
-//								pwm[i] = pwm_value;
-//							}
-//
-//							pwm_out->send_output_pwm(pwm, _outputs.noutputs);
-//
-//						} else {
-//							pwm_out->send_output_pwm(pwm, _outputs.noutputs);
-//						}
-//
-//						if (_outputs_pub != nullptr) {
-//							orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
-//			//				PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)_outputs.output[0],(double)_outputs.output[1],(double)_outputs.output[2],(double)_outputs.output[3]);
-//
-//							//send to container@zivy
-//							// poll_container();
-//						} else {
-//							_outputs_pub = orb_advertise(ORB_ID(actuator_outputs), &_outputs);
-//						}
-//
-//					} else {
-//						PX4_ERR("Could not mix output! Exiting...");
-//						_task_should_exit = true;
-//					}
-
+//			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 			/* iterate actuators */
 			for (unsigned i = 0; i < num_outputs; i++) {
@@ -580,6 +504,7 @@ PWMSim::task_main()
 					outputs.output[i] = PWM_SIM_DISARMED_MAGIC;
 				}
 			}
+//			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 			/* overwrite outputs in case of force_failsafe */
 			if (_failsafe) {
@@ -597,7 +522,6 @@ PWMSim::task_main()
 
 			/* and publish for anyone that cares to see */
 			orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &outputs);
-//			PX4_INFO("ACTUATOR OUTPUTS %f %f %f %f", (double)outputs.output[0],(double)outputs.output[1],(double)outputs.output[2],(double)outputs.output[3]);
 
 		}
 

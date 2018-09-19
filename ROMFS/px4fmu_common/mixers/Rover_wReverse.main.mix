@@ -34,7 +34,7 @@ Throttle = Control Group 0, output channel 3 (throttle):
 ---------------------------------------
 M: 1
 O:      10000  10000     0  -10000  10000
-S: 0 3  10000  10000     -5000  -10000  10000
+S: 0 3  10000  10000     -1500  -10000  10000
 
 board pwm out pin 4:
 This mixer is empty.

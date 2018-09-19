@@ -199,7 +199,7 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 			_mavlink->set_config_link_on(true);
 		}
 	}
-
+//	if (msg->msgid!=0) PX4_INFO("~~~~~receiving messages,msgid %d ", msg->msgid);
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_COMMAND_LONG:
 		if (_mavlink->accepting_commands()) {
@@ -449,7 +449,7 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 	mavlink_command_long_t cmd_mavlink;
 	mavlink_msg_command_long_decode(msg, &cmd_mavlink);
 
-//	PX4_INFO("RECEIVEING MESSAGE %d",cmd_mavlink.command );
+
 
 	bool target_ok = evaluate_target_ok(cmd_mavlink.command, cmd_mavlink.target_system, cmd_mavlink.target_component);
 
@@ -461,7 +461,7 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 		acknowledge(msg->sysid, msg->compid, cmd_mavlink.command, ret);
 		return;
 	}
-
+//	PX4_INFO("RECEIVEING MESSAGE %d",cmd_mavlink.command );
 	if (cmd_mavlink.command == MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES) {
 		/* send autopilot version message */
 		_mavlink->send_autopilot_capabilites();
@@ -522,12 +522,14 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 			.from_external = true
 		};
 
+//
+
 		if (_cmd_pub == nullptr) {
 			_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), &vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);
 
 		} else {
 			orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
-			PX4_INFO("publish vehicle_command %d",vcmd.command );
+			PX4_INFO("publish vehicle_command %d, target_system %d, target_component %d",vcmd.command,cmd_mavlink.target_system,vcmd.target_component );
 		}
 	}
 
@@ -802,12 +804,15 @@ MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 		.confirmation = 1,
 		.from_external = true
 	};
-
+	if (vcmd.param1-65<(float)0.01) vcmd.param1=(float)29;
 	if (_cmd_pub == nullptr) {
 		_cmd_pub = orb_advertise_queue(ORB_ID(vehicle_command), &vcmd, vehicle_command_s::ORB_QUEUE_LENGTH);
+		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
 
 	} else {
 		orb_publish(ORB_ID(vehicle_command), _cmd_pub, &vcmd);
+		PX4_INFO("~~publish vehicle_command param1=%f, param2=%f, param3=%f", (double)vcmd.param1,(double)vcmd.param2,(double)vcmd.param3);
+
 	}
 }
 

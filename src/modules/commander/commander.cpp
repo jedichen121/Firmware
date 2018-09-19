@@ -947,12 +947,16 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 						&& (status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_MANUAL
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_ACRO
 						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_STAB
-						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE)
-						&& (sp_man.z > 0.1f)) {
+						|| status_local->nav_state == vehicle_status_s::NAVIGATION_STATE_RATTITUDE)) {
 
-						mavlink_log_critical(&mavlink_log_pub, "Arming DENIED. Manual throttle non-zero.");
-						cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_DENIED;
-						break;
+						// for rover, mid throttle is required. for other frames zero throttle is required
+						if ( (status_local->system_type == 10 && (sp_man.z > 0.6f || sp_man.z < 0.4f)) ||
+						     (status_local->system_type != 10 && sp_man.z > 0.1f) ) {
+						    mavlink_log_critical(&mavlink_log_pub, "Arming DENIED. Manual throttle non-zero.");
+						    PX4_INFO("manual %f", (double)sp_man.z);
+						    cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_DENIED;
+						    break;
+						}
 					}
 				}
 
@@ -2474,7 +2478,7 @@ int commander_thread_main(int argc, char *argv[])
 					status_flags.gps_failure = false;
 					status_changed = true;
 					if (status_flags.condition_home_position_valid) {
-						//mavlink_log_critical(&mavlink_log_pub, "GPS fix regained");
+						mavlink_log_critical(&mavlink_log_pub, "GPS fix regained");
 					}
 				}
 
@@ -2682,18 +2686,21 @@ int commander_thread_main(int argc, char *argv[])
 			const bool arm_button_pressed = arm_switch_is_button == 1 && sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
 
 			/* DISARM
-			 * check if left stick is in lower left position or arm button is pushed or arm switch has transition from arm to disarm
+			 * check if left stick is in lower left position, except for rover which requires a mid left position, or arm button is pushed or arm switch has transition from arm to disarm
 			 * and we are in MANUAL, Rattitude, or AUTO_READY mode or (ASSIST mode and landed)
 			 * do it only for rotary wings in manual mode or fixed wing if landed */
 			const bool stick_in_lower_left = sp_man.r < -STICK_ON_OFF_LIMIT && sp_man.z < 0.1f;
+			const bool stick_in_mid_left = sp_man.r < -STICK_ON_OFF_LIMIT && sp_man.z < 0.6f && sp_man.z > 0.4f;
+
 			const bool arm_switch_to_disarm_transition =  arm_switch_is_button == 0 &&
-					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_ON &&
-					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF;
+				_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_ON &&
+				sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF;
 
 			if (in_armed_state &&
-				status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
-				(status.is_rotary_wing || (!status.is_rotary_wing && land_detector.landed)) &&
-				(stick_in_lower_left || arm_button_pressed || arm_switch_to_disarm_transition) ) {
+			    status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
+			    (status.is_rotary_wing || (!status.is_rotary_wing && land_detector.landed)) &&
+			    (((stick_in_lower_left && status.system_type != 10) || (stick_in_mid_left && status.system_type == 10))
+			     || arm_button_pressed || arm_switch_to_disarm_transition)) {
 
 				if (internal_state.main_state != commander_state_s::MAIN_STATE_MANUAL &&
 						internal_state.main_state != commander_state_s::MAIN_STATE_ACRO &&
@@ -2729,17 +2736,20 @@ int commander_thread_main(int argc, char *argv[])
 			}
 
 			/* ARM
-			 * check if left stick is in lower right position or arm button is pushed or arm switch has transition from disarm to arm
+			 * check if left stick is in lower right position, except for rover which requires a mid right position, or arm button is pushed or arm switch has transition from disarm to arm
 			 * and we're in MANUAL mode */
 			const bool stick_in_lower_right = (sp_man.r > STICK_ON_OFF_LIMIT && sp_man.z < 0.1f);
+			const bool stick_in_mid_right = (sp_man.r > 0.4f && sp_man.z < 0.6f);
+
 			const bool arm_switch_to_arm_transition = arm_switch_is_button == 0 &&
-					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF &&
-					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
-//			PX4_INFO("ready to arm");
+				_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF &&
+				sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
+
 			if (!in_armed_state &&
-				status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
-				(stick_in_lower_right || arm_button_pressed || arm_switch_to_arm_transition) ) {
-				if ((stick_on_counter == rc_arm_hyst && stick_off_counter < rc_arm_hyst) || arm_switch_to_arm_transition) {
+			    status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
+			    (((stick_in_lower_right && status.system_type != 10) || (stick_in_mid_right && status.system_type == 10))
+			     || arm_button_pressed || arm_switch_to_arm_transition)) {
+			    if ((stick_on_counter == rc_arm_hyst && stick_off_counter < rc_arm_hyst) || arm_switch_to_arm_transition) {
 
 					/* we check outside of the transition function here because the requirement
 					 * for being in manual mode only applies to manual arming actions.
@@ -2774,7 +2784,6 @@ int commander_thread_main(int argc, char *argv[])
 
 						if (arming_ret == TRANSITION_CHANGED) {
 							arming_state_changed = true;
-//							PX4_INFO("~~~~maybe arming 1");
 						} else {
 							usleep(100000);
 							print_reject_arm("NOT ARMING: Preflight checks failed");
@@ -2785,15 +2794,12 @@ int commander_thread_main(int argc, char *argv[])
 			/* do not reset the counter when holding the arm button longer than needed */
 			} else if (!(arm_switch_is_button == 1 && sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON)) {
 				stick_on_counter = 0;
-//				PX4_INFO("~~~~maybe NOT arming 3");//always run this branch
-//				PX4_INFO("arm_switch_is_button=%d, sp_man.arm_switch=%d", arm_switch_is_button, sp_man.arm_switch);
 			}
 
 			_last_sp_man_arm_switch = sp_man.arm_switch;
 
 			if (arming_ret == TRANSITION_CHANGED) {
 				arming_state_changed = true;
-//				PX4_INFO("~~~~maybe arming 4");
 
 			} else if (arming_ret == TRANSITION_DENIED) {
 				/*
@@ -2803,7 +2809,6 @@ int commander_thread_main(int argc, char *argv[])
 				 *  - system not in manual mode
 				 */
 				tune_negative(true);
-//				PX4_INFO("~~~~maybe NOT arming 5");
 			}
 
 			/* evaluate the main state machine according to mode switches */

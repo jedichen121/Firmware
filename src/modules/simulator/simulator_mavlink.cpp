@@ -84,7 +84,12 @@ static hrt_abstime batt_sim_start = 0;
 const unsigned mode_flag_armed = 128; // following MAVLink spec
 const unsigned mode_flag_custom = 1;
 
+hrt_abstime prev_time = 0;
+uint8_t send_switch = 0;
+
 using namespace simulator;
+
+void send_mavlink_hil_sensor(const mavlink_message_t *msg);
 
 void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsigned index)
 {
@@ -93,15 +98,14 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 	bool armed = (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
 
 	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
-//	PX4_INFO("system type: %d",_system_type);
+
 	/* scale outputs depending on system type */
 	if (_system_type == MAV_TYPE_QUADROTOR ||
 	    _system_type == MAV_TYPE_HEXAROTOR ||
 	    _system_type == MAV_TYPE_OCTOROTOR ||
 	    _system_type == MAV_TYPE_VTOL_DUOROTOR ||
 	    _system_type == MAV_TYPE_VTOL_QUADROTOR ||
-	    _system_type == MAV_TYPE_VTOL_RESERVED2 ||
-		 _system_type == MAV_TYPE_GROUND_ROVER) {
+	    _system_type == MAV_TYPE_VTOL_RESERVED2) {
 
 		/* multirotors: set number of rotor outputs depending on type */
 
@@ -124,9 +128,6 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 			n = 4;
 			break;
 
-		case MAV_TYPE_GROUND_ROVER:
-				n = 4;
-				break;
 		case MAV_TYPE_VTOL_RESERVED2:
 			// this is the standard VTOL / quad plane with 5 propellers
 			n = 5;
@@ -139,16 +140,13 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
-//				PX4_INFO("system type: %d, actuators control %f %f %f %f",_system_type, (double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
-
 				if (i < n) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to 0..1 for rotors */
 					msg.controls[i] = (_actuators[index].output[i] - PWM_DEFAULT_MIN) / (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN);
-//					msg.controls[i] = _actuators[index].output[i];
+
 				} else {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for other channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);
-//					msg.controls[i] = _actuators[index].output[i];
 				}
 
 			} else {
@@ -162,8 +160,6 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
-				PX4_INFO("system type: %d, actuators control %f %f %f %f",_system_type, (double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
-
 				if (i != 4) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for normal channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);
@@ -192,6 +188,8 @@ void Simulator::send_controls()
 		if (_actuator_outputs_sub[i] < 0 || _actuators[i].timestamp == 0) {
 			continue;
 		}
+//		PX4_INFO("timestamp: %f", (double) _actuators[i].timestamp);
+//		PX4_INFO("output: %f %f %f %f", (double) _actuators[i].output[0], (double) _actuators[i].output[1], (double) _actuators[i].output[2], (double) _actuators[i].output[3]);
 
 		mavlink_hil_actuator_controls_t msg;
 		pack_actuator_message(msg, i);
@@ -227,6 +225,20 @@ static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t 
 	rc->values[17] = rc_channels->chan18_raw;
 }
 
+void send_mavlink_hil_sensor(const mavlink_message_t *msg) {
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int packetlen = mavlink_msg_to_send_buffer(buffer, msg);
+
+//	PX4_INFO("SENDING GPS MESSAGES");
+
+	ssize_t len = sendto(_fd, buffer, packetlen, 0, (struct sockaddr *) &_sendaddr, sizeof(_sendaddr));
+
+	if (len <= 0) {
+		PX4_INFO("Failed sending mavlink message\n");
+	}
+
+}
+
 void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 {
 
@@ -234,28 +246,28 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	// PX4_INFO("y: %8.4f\n", (double)imu->yacc);
 	// PX4_INFO("z: %8.4f\n", (double)imu->zacc);
 
-	if ((double) imu->temperature > -273.0)
-	{
-		RawBaroData baro = {};
-		// calculate air pressure from altitude (valid for low altitude)
-		baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
-		baro.altitude = imu->pressure_alt;
-		baro.temperature = imu->temperature;
+// 	if ((double) imu->temperature > -273.0)
+// 	{
+// 		RawBaroData baro = {};
+// 		// calculate air pressure from altitude (valid for low altitude)
+// 		baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
+// 		baro.altitude = imu->pressure_alt;
+// 		baro.temperature = imu->temperature;
 
-		write_baro_data(&baro);
+// 		write_baro_data(&baro);
 
-		RawAirspeedData airspeed = {};
-		airspeed.temperature = imu->temperature;
-		airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
+// 		RawAirspeedData airspeed = {};
+// 		airspeed.temperature = imu->temperature;
+// 		airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
 
-		write_airspeed_data(&airspeed);
+// 		write_airspeed_data(&airspeed);
 
-		// this is a baro only message from host px4
-		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
-//			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
-			return;
-		}
-	}
+// 		// this is a baro only message from host px4
+// 		if (imu->xmag > 1000 && imu->ymag > 1000 && imu->zmag > 1000) {
+// //			PX4_INFO("imu->xmag = %8.4f", (double)imu->xmag);
+// 			return;
+// 		}
+//	 }
 
 	// write sensor data to memory so that drivers can copy data from there
 	RawMPUData mpu = {};
@@ -286,7 +298,20 @@ void Simulator::update_sensors(mavlink_hil_sensor_t *imu)
 	write_mag_data(&mag);
 	perf_begin(_perf_mag);
 
-	
+	RawBaroData baro = {};
+	// calculate air pressure from altitude (valid for low altitude)
+	baro.pressure = (PRESS_GROUND - CONSTANTS_ONE_G * DENSITY * imu->pressure_alt) / 100.0f; // convert from Pa to mbar
+	baro.altitude = imu->pressure_alt;
+	baro.temperature = imu->temperature;
+
+	write_baro_data(&baro);
+
+	RawAirspeedData airspeed = {};
+	airspeed.temperature = imu->temperature;
+	airspeed.diff_pressure = imu->diff_pressure + 0.001f * (hrt_absolute_time() & 0x01);
+
+	write_airspeed_data(&airspeed);
+
 }
 
 void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
@@ -306,14 +331,16 @@ void Simulator::update_gps(mavlink_hil_gps_t *gps_sim)
 	gps.fix_type = gps_sim->fix_type;
 	gps.satellites_visible = gps_sim->satellites_visible;
 
+//	PX4_INFO("hil gps: %f %f %f", (double) gps.lat, (double) gps.lon, (double) gps.alt);
+
 	write_gps_data((void *)&gps);
-//        PX4_INFO("gps: %f %f", (double)gps.lat, (double)gps.lon );
 }
 
 void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 {
 	switch (msg->msgid) {
 	case MAVLINK_MSG_ID_HIL_SENSOR: {
+//			send_mavlink_message(MAVLINK_MSG_ID_HIL_SENSOR, msg, 200);
 			mavlink_hil_sensor_t imu;
 			mavlink_msg_hil_sensor_decode(msg, &imu);
 
@@ -328,7 +355,8 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			hrt_abstime curr_sitl_time = hrt_absolute_time();
 			hrt_abstime curr_sim_time = imu.time_usec;
-
+//			PX4_INFO("%f, %f, %f", (double) imu.diff_pressure, (double) imu.time_usec, (double) curr_sitl_time - prev_time);
+			prev_time = hrt_absolute_time();
 			if (compensation_enabled && _initialized
 			    && _last_sim_timestamp > 0 && _last_sitl_timestamp > 0
 			    && _last_sitl_timestamp < curr_sitl_time
@@ -377,6 +405,16 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			_last_sitl_timestamp = curr_sitl_time;
 			_last_sim_timestamp = curr_sim_time;
+
+			// if (send_switch == 4) {
+			// 	mavlink_message_t hil_msg;
+			// 	mavlink_msg_hil_sensor_encode_chan(1, 200, MAVLINK_COMM_0, &hil_msg, &imu);
+			// 	send_mavlink_hil_sensor(&hil_msg);
+			// 	send_switch = 0;
+			// }
+			// else
+			// 	send_switch += 1;
+
 
 			// correct timestamp
 			imu.time_usec = now;
@@ -444,7 +482,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 	case MAVLINK_MSG_ID_HIL_GPS:
 		mavlink_hil_gps_t gps_sim;
 		mavlink_msg_hil_gps_decode(msg, &gps_sim);
-
+//		PX4_INFO("hil gps: %f %f %f %f", (double) gps_sim.lat, (double) gps_sim.lon, (double) gps_sim.alt, (double) gps_sim.time_usec);
 		if (publish) {
 			//PX4_WARN("FIXME:  Need to publish GPS topic.  Not done yet.");
 		}
@@ -556,6 +594,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 
 		break;
+
 	}
 
 }
@@ -611,7 +650,6 @@ void Simulator::poll_topics()
 
 		if (updated) {
 			orb_copy(ORB_ID(actuator_outputs), _actuator_outputs_sub[i], &_actuators[i]);
-//			PX4_INFO("actuators control %f %f %f %f",(double)_actuators[i].output[0], (double)_actuators[i].output[1],(double)_actuators[i].output[2], (double)_actuators[i].output[3]);
 		}
 	}
 
@@ -903,6 +941,30 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 		// got data from simulator
 		if (fds[0].revents & POLLIN) {
 			len = recvfrom(_fd, _buf, sizeof(_buf), 0, (struct sockaddr *)&_srcaddr, &_addrlen);
+			//handle GPS message
+			// if(_buf[7]==113){
+			// 	mavlink_hil_gps_t gps_sim;
+			// 	//mavlink_msg_hil_gps_decode(msg, &gps_sim);
+			// 	gps_sim.time_usec = _buf[0];
+			// 	gps_sim.fix_type = _buf[34];
+			// 	gps_sim.lat = _buf[8];
+			// 	gps_sim.lon = _buf[12];
+			// 	gps_sim.alt = _buf[16];
+			// 	gps_sim.eph = _buf[20];
+			// 	gps_sim.epv = _buf[22];
+			// 	gps_sim.vel = _buf[24];
+			// 	gps_sim.vn = _buf[26];
+			// 	gps_sim.ve = _buf[28];
+			// 	gps_sim.vd = _buf[30];
+
+			// 	PX4_INFO("hil gps: %f %f %f", (double) gps_sim.lat, (double) gps_sim.lon, (double) gps_sim.alt);
+			// 	if (publish) {
+			// 		//PX4_WARN("FIXME:  Need to publish GPS topic.  Not done yet.");
+			// 	}
+
+			// 	update_gps(&gps_sim);
+
+			// }
 
 			if (len > 0) {
 				mavlink_message_t msg;
@@ -910,25 +972,10 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 				for (int i = 0; i < len; i++) {
 					if (mavlink_parse_char(MAVLINK_COMM_0, _buf[i], &msg, &udp_status)) {
 						// have a message, handle it
-						handle_message(&msg, publish);
-						
-					// /*zhiwei adds, send msg to another px4, udp port 14562*/
-					// 	uint8_t  buf[MAVLINK_MAX_PACKET_LEN];
-					// 	uint16_t bufLen = 0;
-					// 	// convery mavlink message to raw data
-					// 	bufLen = mavlink_msg_to_send_buffer(buf, &msg);
 
-					// 	_srcaddr.sin_port = htons(14562);
-					// 	// send data
-					// 	ssize_t len2 = sendto(_fd, buf, bufLen, 0, (struct sockaddr *)&_srcaddr, _addrlen);
-					// 	if (len2 <= 0) {
-					// 			PX4_WARN("*****Failed sending mavlink message*");
-					// 	}
-					// /* end */
-					// 	if (len <= 0) {
-					// 		PX4_WARN("Failed sending mavlink message******");
-					// 	}
-						
+						// if (msg.msgid != MAVLINK_MSG_ID_HIL_SENSOR)
+						// 	PX4_INFO("msgid is: %d", msg.msgid);
+						handle_message(&msg, publish);
 					}
 				}
 			}

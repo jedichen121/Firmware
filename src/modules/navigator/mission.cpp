@@ -356,6 +356,7 @@ Mission::update_offboard_mission()
 
 	if (orb_copy(ORB_ID(offboard_mission), _navigator->get_offboard_mission_sub(), &_offboard_mission) == OK) {
 		// The following is not really a warning, but it can be useful to have this message in the log file
+//		PX4_INFO("u~~~~~~~~~~");
 		PX4_WARN("offboard mission updated: dataman_id=%d, count=%d, current_seq=%d", _offboard_mission.dataman_id,
 			 _offboard_mission.count, _offboard_mission.current_seq);
 
@@ -367,13 +368,16 @@ Mission::update_offboard_mission()
 			/* if less items available, reset to first item */
 			if (_current_offboard_mission_index >= (int)_offboard_mission.count) {
 				_current_offboard_mission_index = 0;
+				PX4_INFO("mission index reset to first item");
 
 			} else if (_current_offboard_mission_index < 0) {
 				/* if not initialized, set it to 0 */
 				_current_offboard_mission_index = 0;
+				PX4_INFO("mission index set to 0");
 			}
 
 			/* otherwise, just leave it */
+			PX4_INFO("otherwise, just leave it");
 		}
 
 		check_mission_valid(true);
